@@ -1,0 +1,98 @@
+project:
+  type: website
+  output-dir: _site
+  preview:
+    port: 4200
+
+website:
+  title: "txtcaptcha"
+  description: "Read, annotate, train and decrypt text captchas with a CRNN+CTC model."
+  site-url: https://jtrecenti.github.io/txtcaptcha/
+  repo-url: https://github.com/jtrecenti/txtcaptcha
+  repo-actions: [edit, issue]
+  page-navigation: true
+  navbar:
+    left:
+      - text: Home
+        href: index.qmd
+      - text: Get started
+        href: get-started.qmd
+      - text: API reference
+        href: reference/index.qmd
+      - text: Changelog
+        href: changelog.qmd
+    right:
+      - icon: github
+        href: https://github.com/jtrecenti/txtcaptcha
+        aria-label: GitHub
+      - text: "🤗 Model"
+        href: https://huggingface.co/jtrecenti/txtcaptcha-crnn
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+
+quartodoc:
+  package: txtcaptcha
+  title: API reference
+  dir: reference
+  sidebar: reference/_sidebar.yml
+  render_interlinks: true
+  options:
+    include_inherited: true
+  sections:
+    - title: Reading and annotating
+      desc: Load images and labels into memory.
+      contents:
+        - read_captcha
+        - Captcha
+        - annotate
+    - title: Datasets and preprocessing
+      desc: PyTorch dataset plumbing.
+      contents:
+        - CaptchaDataset
+        - transform_image
+        - encode_label
+        - decode_indices
+        - pad_collate
+        - DEFAULT_VOCAB
+    - title: Model
+      desc: CRNN + CTC architecture.
+      contents:
+        - CRNN
+    - title: Training
+      desc: Fit a model end-to-end.
+      contents:
+        - fit_model
+        - FitHistory
+        - sequence_accuracy
+    - title: Inference
+      desc: Predict labels with masking and fixed-length options.
+      contents:
+        - decrypt
+    - title: Local checkpoints
+      desc: Save and load local `.pt` files.
+      contents:
+        - save_model
+        - load_model
+    - title: Hugging Face Hub
+      desc: Publish and fetch models from the Hub.
+      contents:
+        - from_pretrained
+        - save_pretrained
+        - push_to_hub
+        - DEFAULT_REPO_ID
+    - title: Datasets (download)
+      desc: Fetch labeled captcha datasets published by the project.
+      contents:
+        - download_dataset
+        - available_datasets
+    - title: Live captcha download
+      desc: Fetch fresh captchas from live sources for evaluation.
+      contents:
+        - download_captchas
+        - available_sources
+        - DownloadError

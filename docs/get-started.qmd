@@ -1,0 +1,121 @@
+---
+title: Get started
+---
+
+## Install
+
+```bash
+pip install txtcaptcha
+```
+
+From source with [`uv`](https://docs.astral.sh/uv/):
+
+```bash
+git clone https://github.com/jtrecenti/txtcaptcha
+cd txtcaptcha
+uv sync --extra dev
+```
+
+## Decrypt a single captcha
+
+```python
+from txtcaptcha import read_captcha, decrypt
+
+cap = read_captcha("captcha.png")
+print(decrypt(cap))
+```
+
+The first call pulls the pretrained CRNN from
+[`jtrecenti/txtcaptcha-crnn`](https://huggingface.co/jtrecenti/txtcaptcha-crnn)
+into `~/.cache/huggingface/hub`. Every subsequent call is free.
+
+## Decode-time masking
+
+Restrict the output to a specific character set without retraining:
+
+```python
+decrypt(cap, mask="[0-9]")                  # digits only
+decrypt(cap, mask="[a-z0-9]")               # lowercase + digits
+decrypt(cap, mask=list("abc123"))           # explicit list
+decrypt(cap, mask="[A-Z]", case_sensitive=True)
+```
+
+## Fixed-length decoding
+
+When the site always uses a known length, force the decoder to return
+exactly that many characters:
+
+```python
+decrypt(cap, length=5)                      # exactly 5 chars
+decrypt(cap, length=4, mask="[0-9]")        # 4-digit captcha
+```
+
+Internally, this runs an exact dynamic-programming search over CTC paths
+that collapse to `length` characters. Strictly at least as good as greedy
+when the true length is known.
+
+## Batch decoding
+
+`decrypt` accepts a file, a list of files, or a `Captcha` container:
+
+```python
+from pathlib import Path
+from txtcaptcha import decrypt
+
+files = list(Path("captchas/").glob("*.png"))
+predictions = decrypt(files)
+for f, pred in zip(files, predictions):
+    print(f.name, "→", pred)
+```
+
+## Train your own model
+
+```python
+from txtcaptcha import fit_model, save_model, download_dataset
+
+data_dir = download_dataset("tjmg", "data")
+model, history = fit_model(
+    data_dir,
+    epochs=30,
+    batch_size=64,
+    case_sensitive=False,
+)
+save_model(model, "tjmg.pt")
+```
+
+`download_dataset` fetches one of the labeled datasets shipped with the
+project. Use `available_datasets()` for the full list.
+
+## Publish to the Hugging Face Hub
+
+```python
+from txtcaptcha import push_to_hub
+
+push_to_hub(
+    model,
+    repo_id="your-username/your-captcha-model",
+    model_card="# My captcha model\n\n...",
+    tag="v0.1.0",
+)
+```
+
+Load it back in a later session:
+
+```python
+from txtcaptcha import from_pretrained, decrypt, read_captcha
+
+model = from_pretrained("your-username/your-captcha-model", revision="v0.1.0")
+decrypt(read_captcha("captcha.png"), model=model)
+```
+
+## Download live, unlabeled captchas
+
+The `download_captchas` CLI fetches fresh samples from 10 Brazilian court /
+tax sources (`cadesp`, `esaj`, `jucesp`, `rfb`, `sei`, `tjmg`, `tjpe`,
+`tjrs`, `trf5`, `trt`):
+
+```bash
+download_captchas --source tjmg --n 16 --out captchas/
+```
+
+Useful for smoke-testing a trained model on new distributions.

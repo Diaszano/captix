@@ -1,46 +1,56 @@
 # txtcaptcha
 
-Python port of the R [`captcha`](https://github.com/decryptr/captcha) package
-for working with **text captchas in images**: read, annotate, train a model,
-and predict labels.
+[![PyPI](https://img.shields.io/pypi/v/txtcaptcha.svg)](https://pypi.org/project/txtcaptcha/)
+[![Python](https://img.shields.io/pypi/pyversions/txtcaptcha.svg)](https://pypi.org/project/txtcaptcha/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Model on HF](https://img.shields.io/badge/%F0%9F%A4%97%20HF-jtrecenti%2Ftxtcaptcha--crnn-yellow)](https://huggingface.co/jtrecenti/txtcaptcha-crnn)
+[![Docs](https://img.shields.io/badge/docs-online-brightgreen)](https://jtrecenti.github.io/txtcaptcha/)
 
-The original R package only supported a fixed image size, a fixed label
-length, and a per-captcha vocabulary. `txtcaptcha` ships a modernized
-**CRNN + CTC** architecture that handles:
+Read, annotate, train and decrypt **text captchas in images** with a modern
+CRNN + CTC pipeline in PyTorch.
 
-- arbitrary input image dimensions (variable width, height resized at load),
-- variable-length labels,
+`txtcaptcha` ships:
+
+- a CRNN architecture that handles **arbitrary input sizes** and
+  **variable-length labels**,
 - the full alphanumeric vocabulary `0-9a-zA-Z` (62 classes + CTC blank),
-- decode-time **masking** so a single trained model can be restricted to a
-  specific character set per site (e.g. `[0-9]` only).
+- **decode-time masking** so a single trained model can be restricted per
+  site (e.g. `mask="[0-9]"`),
+- **fixed-length decoding** via `length=N` for sites with a known length,
+- a pretrained unified model hosted on the
+  [Hugging Face Hub](https://huggingface.co/jtrecenti/txtcaptcha-crnn) with
+  ~89% captcha-level accuracy across ten Brazilian court captcha datasets.
 
 ## Installation
 
 ```bash
+pip install txtcaptcha
+```
+
+Or from source with [`uv`](https://docs.astral.sh/uv/):
+
+```bash
+git clone https://github.com/jtrecenti/txtcaptcha
+cd txtcaptcha
 uv sync --extra dev
-# or, with pip:
-pip install -e .
 ```
 
 ## Quick start
 
-The pretrained unified CRNN lives on the Hugging Face Hub at
-[**jtrecenti/txtcaptcha-crnn**](https://huggingface.co/jtrecenti/txtcaptcha-crnn)
-(~89% captcha-level accuracy across ten Brazilian court datasets). The first
-`decrypt` call downloads it into `~/.cache/huggingface/hub`; subsequent calls
-are free.
+The first `decrypt` call downloads the pretrained model from the Hugging Face
+Hub into `~/.cache/huggingface/hub`; subsequent calls are free.
 
 ```python
 from txtcaptcha import read_captcha, decrypt
 
 cap = read_captcha("path/to/captcha.png")
-print(decrypt(cap))                          # auto-downloads on first call
+print(decrypt(cap))                          # greedy, variable length
 print(decrypt(cap, mask="[0-9]"))            # digits only
 print(decrypt(cap, length=5))                # force exactly 5 chars
 print(decrypt(cap, mask=list("abcdef0123"))) # explicit allowed set
 ```
 
-Pin a specific release or load a different repo explicitly:
+Pin a specific release or load a different Hub repo explicitly:
 
 ```python
 from txtcaptcha import from_pretrained
@@ -55,8 +65,26 @@ print(decrypt(cap, model=model))
 from txtcaptcha import fit_model, save_model, download_dataset
 
 data_dir = download_dataset("tjmg", "data")
-model, history = fit_model(data_dir, epochs=30, batch_size=64, case_sensitive=False)
+model, history = fit_model(
+    data_dir,
+    epochs=30,
+    batch_size=64,
+    case_sensitive=False,
+)
 save_model(model, "tjmg.pt")
+```
+
+### Publishing your own model to the Hub
+
+```python
+from txtcaptcha import push_to_hub
+
+push_to_hub(
+    model,
+    repo_id="your-username/your-captcha-model",
+    model_card="# My captcha model\n\nTrained on ...",
+    tag="v0.1.0",
+)
 ```
 
 ## Public API
@@ -64,19 +92,22 @@ save_model(model, "tjmg.pt")
 | Function | Purpose |
 |---|---|
 | `read_captcha(files, lab_in_path=False)` | Load image(s) into a `Captcha` object. |
-| `Captcha` | Container with `images`, `labels`, `paths`, `__len__`, indexing, `plot()`. |
-| `annotate(files, labels=None, path=None, rm_old=False)` | Append `_<label>` to filenames; interactive when labels are missing. |
+| `Captcha` | Container with `images`, `labels`, `paths`, `plot()`. |
+| `annotate(files, labels=None, ...)` | Interactive/batch labeling (filename convention). |
 | `CaptchaDataset(root, vocab, height, case_sensitive)` | PyTorch dataset over a folder of `<id>_<label>.<ext>` files. |
-| `transform_image(files, height=32)` | Load + resize to fixed height, pad widths within a batch. |
+| `transform_image(files, height=32)` | Load + resize + width-pad for batching. |
 | `encode_label`, `decode_indices` | Vocab ↔ tensor (CTC blank index 0). |
 | `pad_collate` | DataLoader collate fn for variable-width batching. |
-| `CRNN(vocab, ...)` | CRNN backbone (ResNet-style CNN + BiLSTM + linear head). |
-| `fit_model(dir, ...)` | Training loop with CTC loss, validation, early stopping. |
-| `decrypt(files, model, mask=None, case_sensitive=True, length=None)` | Predict labels with optional masking and optional fixed output length. |
-| `save_model`, `load_model` | Persist / restore txtcaptcha checkpoints. |
-| `available_datasets`, `download_dataset` | Discover and fetch the original R datasets from GitHub releases. |
-| `available_models`, `download_model` | List / download the legacy R `.pt` files (see note below). |
+| `CRNN(vocab, ...)` | CNN + BiLSTM + linear head. |
+| `fit_model(dir, ...)` | Training loop with CTC loss + early stopping. |
+| `decrypt(files, model=None, mask=None, case_sensitive=True, length=None)` | Predict labels; auto-downloads the pretrained model when `model=None`. |
+| `save_model`, `load_model` | Local checkpoint persistence. |
+| `from_pretrained`, `save_pretrained`, `push_to_hub` | Hugging Face Hub integration. |
+| `download_dataset`, `available_datasets` | Fetch labeled training datasets. |
+| `download_captchas` (CLI) | Download live, unlabeled captchas from 10 Brazilian sources. |
 | `sequence_accuracy(preds, targets)` | Exact-match accuracy metric. |
+
+Full API reference: **<https://jtrecenti.github.io/txtcaptcha/>**.
 
 ## Architecture
 
@@ -87,74 +118,61 @@ save_model(model, "tjmg.pt")
    `4`, preserving width resolution for the sequence dimension.
 2. **Adaptive pool** — collapses the remaining height to 1, producing a
    width-indexed sequence of feature vectors.
-3. **BiLSTM** — 2-layer bidirectional LSTM (hidden 256) for context.
-4. **Linear head** — projects to `len(vocab) + 1` logits per timestep
-   (the extra slot is the CTC blank).
-5. **CTC loss** — handles variable-length targets, no need for fixed
-   per-position classification.
+3. **BiLSTM** — 2-layer bidirectional LSTM (hidden 256).
+4. **Linear head** — projects to `len(vocab) + 1` logits per timestep (the
+   extra slot is the CTC blank).
+5. **CTC loss** — handles variable-length targets, no per-position softmax.
 
-Variable image dimensions are handled by:
-- resizing height to a fixed value (default 32) at load time,
-- preserving aspect-ratio width,
-- padding widths within each batch via `pad_collate`.
-
-The output sequence length scales with input width, which is exactly what
-CTC expects. CRNN+CTC is the de-facto baseline for short-text scene-text
-recognition; it consistently outperforms fixed-position CNN heads on
-captcha datasets and is much lighter than transformer OCR (e.g. TrOCR),
-which is overkill for short captcha images.
+Variable image dimensions are handled by resizing height to 32 at load time,
+preserving the aspect-ratio width, and padding widths within each batch via
+`pad_collate`. CRNN+CTC is the de-facto baseline for short-text scene-text
+recognition — lighter than transformer OCR (e.g. TrOCR) and consistently
+strong on short captcha images.
 
 ## Variable-length labels
 
-`CRNN + CTC` handles variable label lengths natively. At decode time, the
-convolutional stack produces a width-indexed sequence of `T` logits per
-image; CTC collapsing (remove consecutive repeats, then remove blanks)
-turns any such path into a string of arbitrary length between 0 and `T`.
-Training mixes 4-char and 5-char labels in the same batch without any
-special handling — `pad_collate` pads images to the widest sample and
-`CTCLoss` consumes the per-sample target lengths. No fixed output head,
-no length head, no padding tokens: the length is whatever the collapse
-produces.
+CRNN + CTC handles variable label lengths natively. The convolutional stack
+emits `T` logits per image; CTC collapsing (remove consecutive repeats, then
+remove blanks) turns any path into a string of arbitrary length between 0
+and `T`. Training mixes 4-char and 5-char labels in the same batch — no
+length head, no padding tokens.
 
-The downside of pure greedy CTC decoding is that a confident wrong
-timestep can yield a prediction of the wrong length (e.g. 4 chars for a
-site that always uses 5). When you know the expected length up-front,
-pass `length=` to `decrypt()` to switch from greedy decoding to an exact
-dynamic-programming search over CTC paths that collapse to *exactly*
-that many characters:
+The downside of greedy CTC is that a confident wrong timestep can yield a
+prediction of the wrong length. When you know the expected length, pass
+`length=` to switch to an exact dynamic-programming search over CTC paths
+that collapse to exactly that many characters:
 
 ```python
-decrypt(cap, model)              # greedy — output length is whatever collapses
-decrypt(cap, model, length=5)    # force output to exactly 5 characters
-decrypt(cap, model, length=4, mask="[0-9]")  # combine with masking
+decrypt(cap)                       # greedy
+decrypt(cap, length=5)             # force 5 chars
+decrypt(cap, length=4, mask="[0-9]")  # combine with masking
 ```
 
 The DP runs in `O(T · L · |vocab|)` per image, tracks the best path for
-every `(collapsed_count, last_index)` state, and then reconstructs the
-argmax. It is strictly at least as good as greedy when the true length
-is known, and never emits a wrong-length prediction. Leave `length=None`
-when the site mixes lengths (e.g. 4 *or* 5 chars) — in that case either
-call `decrypt` once per length bucket, or stick with greedy.
+every `(collapsed_count, last_index)` state and reconstructs the argmax. It
+is strictly at least as good as greedy when the true length is known and
+never emits a wrong-length prediction.
 
 ## Decode-time masking
 
-`decrypt(..., mask=...)` zeros out forbidden vocabulary logits before greedy
-CTC decoding, so the same trained model can be specialized per site:
+`decrypt(..., mask=...)` zeros out forbidden vocabulary logits before CTC
+decoding, so the same trained model can be specialized per site:
 
 ```python
-decrypt(cap, model, mask=["a", "b", "c", "1", "2", "3"])  # explicit list
-decrypt(cap, model, mask="[0-9a-z]")                       # regex char-class
-decrypt(cap, model, mask="[A-Z]", case_sensitive=True)     # uppercase only
-decrypt(cap, model, mask="[a-z]", case_sensitive=False)    # output lowercased
+decrypt(cap, mask=["a", "b", "c", "1", "2", "3"])  # explicit list
+decrypt(cap, mask="[0-9a-z]")                       # regex char-class
+decrypt(cap, mask="[A-Z]", case_sensitive=True)     # uppercase only
+decrypt(cap, mask="[a-z]", case_sensitive=False)    # output lowercased
 ```
 
-## Notebook
+## Notebooks
 
-`notebooks/train_unified_model.ipynb` downloads every dataset published in
-the R `captcha` release page (`cadesp`, `esaj`, `jucesp`, `rfb`, `sei`,
-`tjmg`, `tjpe`, `tjrs`, `trf5`, `trt`), merges them into one folder, and
-fits a single model with the full alphanumeric vocabulary. Designed to run
-on a cloud GPU machine.
+- `notebooks/train_unified_model.ipynb` — downloads every dataset, merges
+  them and trains the unified CRNN. Designed for a cloud GPU machine.
+- `notebooks/eval_per_dataset.ipynb` — per-dataset accuracy on a held-out
+  split.
+- `notebooks/eval_per_dataset_live.ipynb` — predictions on freshly
+  downloaded, unlabeled captchas (overfit check).
 
 ## Tests
 
@@ -162,33 +180,6 @@ on a cloud GPU machine.
 uv run pytest
 ```
 
-40 tests cover the public API: reading, annotating, dataset/transform,
-encode/decode round-trips, model forward shapes (variable width and
-height), decrypt with all mask types, end-to-end training on a tiny
-synthetic corpus, save/load round-trip, and metrics.
+## License
 
-## Note on legacy R models
-
-The original R package distributes pretrained models as `.pt` files
-serialized via R's `luz`/`torch` bindings. **These binaries cannot be
-loaded directly from pure Python** because the format depends on R's
-side of the torch serialization. `download_model()` is provided to fetch
-the raw bytes for inspection or manual conversion, but `load_model()`
-only accepts checkpoints written by `save_model()`.
-
-To recover comparable models, retrain with `fit_model()` using the
-corresponding dataset from `download_dataset()` — the new architecture
-generally outperforms the legacy CNN-with-classification-head on the same
-data.
-
-## Differences vs the R package
-
-| Feature | R `captcha` | `txtcaptcha` |
-|---|---|---|
-| Architecture | CNN + per-position softmax | CRNN + CTC |
-| Image dim | Fixed `32x192` | Any (height resized, width batched) |
-| Label length | Fixed | Variable |
-| Vocabulary | Inferred per dataset | Full `0-9a-zA-Z` |
-| Decode-time mask | — | List or regex; `case_sensitive` flag |
-| Captcha generator | `r_captcha` | Not ported (per request) |
-| Pretrained models | luz `.pt` | Retrain via notebook |
+[MIT](LICENSE) © Julio Trecenti

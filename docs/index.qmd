@@ -1,0 +1,49 @@
+---
+title: "txtcaptcha"
+subtitle: "Read, annotate, train and decrypt text captchas with a CRNN+CTC model."
+toc: false
+---
+
+`txtcaptcha` is a PyTorch library for **text captcha recognition**. It ships a
+CRNN + CTC architecture that handles arbitrary input sizes and variable-length
+labels, plus a pretrained unified model hosted on the
+[Hugging Face Hub](https://huggingface.co/jtrecenti/txtcaptcha-crnn) that
+reaches **~89% captcha-level accuracy** across ten Brazilian court captcha
+datasets.
+
+## Install
+
+```bash
+pip install txtcaptcha
+```
+
+## Decrypt a captcha in three lines
+
+The first call downloads the pretrained model from the Hugging Face Hub and
+caches it into `~/.cache/huggingface/hub`.
+
+```python
+from txtcaptcha import read_captcha, decrypt
+
+cap = read_captcha("path/to/captcha.png")
+print(decrypt(cap))
+```
+
+## Why CRNN + CTC?
+
+- **Arbitrary input dimensions.** Height is resized to 32, width is preserved
+  and padded per-batch.
+- **Variable label length.** CTC collapsing (remove repeats, then remove
+  blanks) yields strings of arbitrary length — no length head required.
+- **Decode-time masking.** A single trained model can be restricted to any
+  character set per site via `decrypt(cap, mask="[0-9]")`.
+- **Fixed-length mode.** When the expected length is known, `length=N`
+  switches from greedy to an exact dynamic-programming CTC search and never
+  emits a wrong-length prediction.
+
+## Next steps
+
+- [Get started](get-started.qmd) — install, train, decrypt, publish.
+- [API reference](reference/index.qmd) — every public function.
+- [Pretrained model on the Hugging Face Hub](https://huggingface.co/jtrecenti/txtcaptcha-crnn).
+- [Source code on GitHub](https://github.com/jtrecenti/txtcaptcha).
