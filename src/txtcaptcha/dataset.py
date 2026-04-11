@@ -11,6 +11,7 @@ import string
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
@@ -63,6 +64,35 @@ def decode_indices(
     return "".join(out_chars)
 
 
+def _flatten_transparency(img: Image.Image) -> Image.Image:
+    """If ``img`` has an alpha channel, composite it onto a solid background
+    whose luminance contrasts with the average color of the visible pixels,
+    then return an RGB image. Otherwise return ``img.convert('RGB')``.
+
+    PIL's default ``convert('RGB')`` drops alpha by pasting onto black — so a
+    captcha drawn as black glyphs on a transparent PNG (TJPE, some PJe
+    installs) collapses to an all-black image and the model sees nothing.
+    Picking the background as the tonal inverse of the mean visible color
+    recovers the contrast regardless of whether the glyphs are dark or light.
+    """
+    has_alpha = img.mode in ("RGBA", "LA") or (
+        img.mode == "P" and "transparency" in img.info
+    )
+    if not has_alpha:
+        return img.convert("RGB")
+    rgba = img.convert("RGBA")
+    arr = np.asarray(rgba)
+    visible = arr[..., 3] > 0
+    if visible.any():
+        mean_lum = float(arr[..., :3][visible].mean())
+    else:
+        mean_lum = 0.0
+    bg_value = 255 if mean_lum < 128 else 0
+    bg = Image.new("RGB", rgba.size, (bg_value, bg_value, bg_value))
+    bg.paste(rgba, mask=rgba.split()[-1])
+    return bg
+
+
 def transform_image(
     files: Union[PathLike, Sequence[PathLike], Image.Image, Sequence[Image.Image]],
     height: int = 32,
@@ -82,9 +112,9 @@ def transform_image(
     tensors: List[torch.Tensor] = []
     for f in files_list:
         if isinstance(f, Image.Image):
-            img = f.convert("RGB")
+            img = _flatten_transparency(f)
         else:
-            img = Image.open(f).convert("RGB")
+            img = _flatten_transparency(Image.open(f))
         w, h = img.size
         new_w = max(1, int(round(w * (height / h))))
         img = img.resize((new_w, height), Image.BILINEAR)

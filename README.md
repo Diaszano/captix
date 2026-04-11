@@ -63,7 +63,7 @@ print(decrypt(cap, model, mask=list("abcdef0123"))) # explicit allowed set
 | `pad_collate` | DataLoader collate fn for variable-width batching. |
 | `CRNN(vocab, ...)` | CRNN backbone (ResNet-style CNN + BiLSTM + linear head). |
 | `fit_model(dir, ...)` | Training loop with CTC loss, validation, early stopping. |
-| `decrypt(files, model, mask=None, case_sensitive=True)` | Predict labels with optional masking. |
+| `decrypt(files, model, mask=None, case_sensitive=True, length=None)` | Predict labels with optional masking and optional fixed output length. |
 | `save_model`, `load_model` | Persist / restore txtcaptcha checkpoints. |
 | `available_datasets`, `download_dataset` | Discover and fetch the original R datasets from GitHub releases. |
 | `available_models`, `download_model` | List / download the legacy R `.pt` files (see note below). |
@@ -94,6 +94,38 @@ CTC expects. CRNN+CTC is the de-facto baseline for short-text scene-text
 recognition; it consistently outperforms fixed-position CNN heads on
 captcha datasets and is much lighter than transformer OCR (e.g. TrOCR),
 which is overkill for short captcha images.
+
+## Variable-length labels
+
+`CRNN + CTC` handles variable label lengths natively. At decode time, the
+convolutional stack produces a width-indexed sequence of `T` logits per
+image; CTC collapsing (remove consecutive repeats, then remove blanks)
+turns any such path into a string of arbitrary length between 0 and `T`.
+Training mixes 4-char and 5-char labels in the same batch without any
+special handling — `pad_collate` pads images to the widest sample and
+`CTCLoss` consumes the per-sample target lengths. No fixed output head,
+no length head, no padding tokens: the length is whatever the collapse
+produces.
+
+The downside of pure greedy CTC decoding is that a confident wrong
+timestep can yield a prediction of the wrong length (e.g. 4 chars for a
+site that always uses 5). When you know the expected length up-front,
+pass `length=` to `decrypt()` to switch from greedy decoding to an exact
+dynamic-programming search over CTC paths that collapse to *exactly*
+that many characters:
+
+```python
+decrypt(cap, model)              # greedy — output length is whatever collapses
+decrypt(cap, model, length=5)    # force output to exactly 5 characters
+decrypt(cap, model, length=4, mask="[0-9]")  # combine with masking
+```
+
+The DP runs in `O(T · L · |vocab|)` per image, tracks the best path for
+every `(collapsed_count, last_index)` state, and then reconstructs the
+argmax. It is strictly at least as good as greedy when the true length
+is known, and never emits a wrong-length prediction. Leave `length=None`
+when the site mixes lengths (e.g. 4 *or* 5 chars) — in that case either
+call `decrypt` once per length bucket, or stick with greedy.
 
 ## Decode-time masking
 

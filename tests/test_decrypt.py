@@ -52,3 +52,17 @@ def test_decrypt_case_insensitive_lowercases(tmp_captcha_file):
     model = CRNN()
     out = decrypt(tmp_captcha_file, model, mask="[a-zA-Z]", case_sensitive=False)
     assert out[0] == out[0].lower()
+
+
+def test_decrypt_fixed_length_enforced(tmp_captcha_file):
+    model = CRNN()
+    for L in (3, 5):
+        out = decrypt(tmp_captcha_file, model, length=L)
+        assert len(out[0]) == L
+
+
+def test_decrypt_fixed_length_honors_mask(tmp_captcha_file):
+    model = CRNN()
+    out = decrypt(tmp_captcha_file, model, mask="[0-9]", length=4)
+    assert len(out[0]) == 4
+    assert out[0].isdigit()

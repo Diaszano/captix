@@ -46,6 +46,8 @@ def load_model(path: PathLike, map_location: Optional[Union[str, torch.device]] 
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(path)
+    if map_location is None:
+        map_location = "cuda" if torch.cuda.is_available() else "cpu"
     payload = torch.load(path, map_location=map_location, weights_only=False)
     if not isinstance(payload, dict) or payload.get("format") != "txtcaptcha-v1":
         raise ValueError(

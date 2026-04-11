@@ -17,6 +17,11 @@ from .decrypt import decrypt
 from .load import save_model, load_model, available_models, download_model
 from .data import download_dataset, available_datasets
 from .metrics import sequence_accuracy
+from .download import (
+    DownloadError,
+    available_sources,
+    download_captchas,
+)
 
 __all__ = [
     "Captcha",
@@ -39,6 +44,9 @@ __all__ = [
     "download_dataset",
     "available_datasets",
     "sequence_accuracy",
+    "download_captchas",
+    "available_sources",
+    "DownloadError",
 ]
 
 __version__ = "0.1.0"
