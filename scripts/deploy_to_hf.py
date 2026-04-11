@@ -101,7 +101,7 @@ The full config is in [`config.json`](./config.json).
 
 ~**89% captcha-level exact match** on a held-out 20% split of the training
 corpus. Per-dataset breakdown available in
-[`notebooks/eval_per_dataset.ipynb`](https://github.com/jtrecenti/txtcaptcha/blob/main/notebooks/eval_per_dataset.ipynb).
+[`docs/notebooks/eval_per_dataset.ipynb`](https://github.com/jtrecenti/txtcaptcha/blob/main/docs/notebooks/eval_per_dataset.ipynb).
 
 ## Limitations
 

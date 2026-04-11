@@ -19,6 +19,8 @@ website:
         href: get-started.qmd
       - text: API reference
         href: reference/index.qmd
+      - text: Notebooks
+        href: notebooks/index.qmd
       - text: Changelog
         href: changelog.qmd
     right:
@@ -34,6 +36,11 @@ format:
     toc: true
     code-copy: true
     code-overflow: wrap
+
+# Notebooks ship with pre-computed outputs. Never re-execute them on CI —
+# they download datasets, pull models from HF, and want a GPU.
+execute:
+  enabled: false
 
 quartodoc:
   package: txtcaptcha

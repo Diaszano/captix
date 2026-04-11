@@ -167,11 +167,11 @@ decrypt(cap, mask="[a-z]", case_sensitive=False)    # output lowercased
 
 ## Notebooks
 
-- `notebooks/train_unified_model.ipynb` — downloads every dataset, merges
+- `docs/notebooks/train_unified_model.ipynb` — downloads every dataset, merges
   them and trains the unified CRNN. Designed for a cloud GPU machine.
-- `notebooks/eval_per_dataset.ipynb` — per-dataset accuracy on a held-out
+- `docs/notebooks/eval_per_dataset.ipynb` — per-dataset accuracy on a held-out
   split.
-- `notebooks/eval_per_dataset_live.ipynb` — predictions on freshly
+- `docs/notebooks/eval_per_dataset_live.ipynb` — predictions on freshly
   downloaded, unlabeled captchas (overfit check).
 
 ## Tests

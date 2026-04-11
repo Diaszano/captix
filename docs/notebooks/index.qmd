@@ -1,0 +1,21 @@
+---
+title: Notebooks
+listing:
+  contents:
+    - "*.ipynb"
+  type: default
+  fields: [title, description]
+  sort: "title"
+---
+
+Executable notebooks that demonstrate the full `txtcaptcha` pipeline. The
+rendered versions below use cached outputs — to re-run them you need a GPU
+machine and the labeled datasets on disk (see
+[`download_dataset`](../reference/download_dataset.qmd)).
+
+- **Train unified model** — download every labeled dataset, merge them into
+  one folder and fit a single CRNN on the full alphanumeric vocabulary.
+- **Evaluate per dataset** — per-source accuracy on a held-out split of the
+  training corpus.
+- **Evaluate per dataset (live)** — smoke-test the model on freshly
+  downloaded, unlabeled captchas to check for overfit.

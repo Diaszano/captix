@@ -12,6 +12,10 @@ notebooks/data
 notebooks/data_merged
 notebooks/data_live
 notebooks/*.pt
+docs/notebooks/data
+docs/notebooks/data_merged
+docs/notebooks/data_live
+docs/notebooks/*.pt
 .claude/
 
 .env
