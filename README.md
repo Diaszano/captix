@@ -24,30 +24,39 @@ pip install -e .
 
 ## Quick start
 
+The pretrained unified CRNN lives on the Hugging Face Hub at
+[**jtrecenti/txtcaptcha-crnn**](https://huggingface.co/jtrecenti/txtcaptcha-crnn)
+(~89% captcha-level accuracy across ten Brazilian court datasets). The first
+`decrypt` call downloads it into `~/.cache/huggingface/hub`; subsequent calls
+are free.
+
 ```python
-from txtcaptcha import (
-    read_captcha, fit_model, decrypt,
-    save_model, load_model,
-    download_dataset,
-)
+from txtcaptcha import read_captcha, decrypt
 
-# 1. Download a labeled dataset published by the original R package
-data_dir = download_dataset("tjmg", "data")
-
-# 2. Train a CRNN+CTC model
-model, history = fit_model(
-    data_dir,
-    epochs=30,
-    batch_size=64,
-    case_sensitive=False,
-)
-save_model(model, "tjmg.pt")
-
-# 3. Predict
 cap = read_captcha("path/to/captcha.png")
-print(decrypt(cap, model))                          # full vocab
-print(decrypt(cap, model, mask="[0-9]"))            # digits only
-print(decrypt(cap, model, mask=list("abcdef0123"))) # explicit allowed set
+print(decrypt(cap))                          # auto-downloads on first call
+print(decrypt(cap, mask="[0-9]"))            # digits only
+print(decrypt(cap, length=5))                # force exactly 5 chars
+print(decrypt(cap, mask=list("abcdef0123"))) # explicit allowed set
+```
+
+Pin a specific release or load a different repo explicitly:
+
+```python
+from txtcaptcha import from_pretrained
+
+model = from_pretrained("jtrecenti/txtcaptcha-crnn", revision="v0.1.0")
+print(decrypt(cap, model=model))
+```
+
+### Training your own model
+
+```python
+from txtcaptcha import fit_model, save_model, download_dataset
+
+data_dir = download_dataset("tjmg", "data")
+model, history = fit_model(data_dir, epochs=30, batch_size=64, case_sensitive=False)
+save_model(model, "tjmg.pt")
 ```
 
 ## Public API

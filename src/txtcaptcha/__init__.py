@@ -22,6 +22,12 @@ from .download import (
     available_sources,
     download_captchas,
 )
+from .hub import (
+    DEFAULT_REPO_ID,
+    from_pretrained,
+    push_to_hub,
+    save_pretrained,
+)
 
 __all__ = [
     "Captcha",
@@ -47,6 +53,10 @@ __all__ = [
     "download_captchas",
     "available_sources",
     "DownloadError",
+    "from_pretrained",
+    "save_pretrained",
+    "push_to_hub",
+    "DEFAULT_REPO_ID",
 ]
 
 __version__ = "0.1.0"

@@ -13,3 +13,5 @@ notebooks/data_merged
 notebooks/data_live
 notebooks/*.pt
 .claude/
+
+.env

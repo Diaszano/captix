@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -12,6 +12,25 @@ import torch.nn.functional as F
 from .captcha import Captcha
 from .dataset import BLANK_INDEX, decode_indices, transform_image
 from .model import CRNN
+
+_DEFAULT_MODEL_CACHE: Dict[str, CRNN] = {}
+
+
+def _resolve_model(model: Optional[Union[CRNN, str]]) -> CRNN:
+    """Accept a CRNN instance, a repo id string, or None.
+
+    ``None`` pulls :data:`txtcaptcha.hub.DEFAULT_REPO_ID` from the Hub.
+    Loaded models are cached per repo id so repeated ``decrypt`` calls
+    don't re-parse the safetensors file.
+    """
+    if isinstance(model, CRNN):
+        return model
+    from .hub import DEFAULT_REPO_ID, from_pretrained
+
+    repo = model if isinstance(model, str) else DEFAULT_REPO_ID
+    if repo not in _DEFAULT_MODEL_CACHE:
+        _DEFAULT_MODEL_CACHE[repo] = from_pretrained(repo)
+    return _DEFAULT_MODEL_CACHE[repo]
 
 PathLike = Union[str, Path]
 MaskType = Optional[Union[Sequence[str], str, re.Pattern]]
@@ -144,7 +163,7 @@ def _ctc_decode_fixed_length(log_probs: np.ndarray, length: int) -> List[int]:
 @torch.no_grad()
 def decrypt(
     files: Union[PathLike, Sequence[PathLike], Captcha],
-    model: CRNN,
+    model: Optional[Union[CRNN, str]] = None,
     mask: MaskType = None,
     case_sensitive: bool = True,
     length: Optional[int] = None,
@@ -155,7 +174,12 @@ def decrypt(
     Parameters
     ----------
     files: file path, list of paths, or a Captcha object.
-    model: a trained `CRNN` instance.
+    model: a trained :class:`CRNN` instance, a Hugging Face repo id (string),
+        or ``None``. When ``None``, the default unified checkpoint
+        (:data:`txtcaptcha.hub.DEFAULT_REPO_ID`) is downloaded from the
+        HF Hub on first call and cached thereafter — the cache lives in
+        ``~/.cache/huggingface/hub`` and is shared with every other
+        ``huggingface_hub`` user on the machine.
     mask: optional restriction on output characters. Either a list of allowed
         characters (e.g. ``['a','b','c']``), a regex character class
         (e.g. ``'[0-9a-z]'`` or ``'0-9'``), or a compiled `re.Pattern`.
@@ -168,6 +192,8 @@ def decrypt(
         the (variable-length) greedy CTC decoder.
     device: torch device for inference. Defaults to model's current device.
     """
+    model = _resolve_model(model)
+
     if isinstance(files, Captcha):
         path_list: List[Union[str, Path]] = list(files.paths)
     elif isinstance(files, (str, Path)):
