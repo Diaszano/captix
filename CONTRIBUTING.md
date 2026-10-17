@@ -22,7 +22,12 @@ Commit syntax: `<type>(optional-scope): description`. The same types are
 accepted; a breaking change uses `!` or a `BREAKING CHANGE:` footer.
 
 Pull requests are squash merged. Give the squash commit a valid Conventional
-Commit message. A `feat` release increments the minor version; `fix` and `perf`
+Commit message, usually by setting the PR title: semantic-release parses that
+final message. Preserve the intended release type there, and mark breaking
+changes with `!` or a `BREAKING CHANGE:` footer. For example, renaming the
+Python package needs `refactor!: rename Python package to captix`; without the
+breaking marker, it will not trigger the major version bump. A `feat` release
+increments the minor version; `fix` and `perf`
 increment the patch version. A breaking change increments the major version.
 Other accepted types do not trigger a release unless marked breaking.
 While the version is `0.x`, ordinary features and fixes remain in `0.x`;
