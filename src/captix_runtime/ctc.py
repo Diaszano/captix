@@ -90,12 +90,6 @@ def _collapse(path: Sequence[int], vocab: Sequence[str], case_sensitive: bool) -
     return text if case_sensitive else text.lower()
 
 
-def top_two_excluding_self(dp: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Return the best and runner-up class indices for each DP row."""
-    top = np.argpartition(-dp, 1, axis=1)[:, :2]
-    return top[:, 0], top[:, 1]
-
-
 def decode_greedy(
     logits: np.ndarray,
     vocab: Sequence[str],
@@ -158,7 +152,8 @@ def decode_fixed_length(
         new_dp = np.where(improved, candidate, new_dp)
         backpointer = np.where(improved, states[:, None] * C + classes, backpointer)
 
-        first_class, second_class = top_two_excluding_self(dp)
+        order = np.argsort(-dp, axis=1)
+        first_class, second_class = order[:, 0], order[:, 1]
         first_value, second_value = dp[states, first_class], dp[states, second_class]
         is_first = first_class[:, None] == classes
         best_other_value = np.where(

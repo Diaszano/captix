@@ -101,31 +101,33 @@ def test_fixed_length_rejects_infeasible_masks_and_bad_logits():
             decode_fixed_length(np.zeros((2, 2)), ["a"], length)
 
 
-def test_top_two_excluding_self_finds_two_distinct_maxima():
-    from captix_runtime.ctc import top_two_excluding_self
-
-    values = np.array([[4.0, 4.0, 1.0, -np.inf], [2.0, 3.0, 3.0, 1.0]])
-    best, second = top_two_excluding_self(values)
-    assert best.tolist() == [0, 1]
-    assert second.tolist() == [1, 2]
-
-
-@pytest.mark.parametrize("seed", [7, 41, 2026])
-def test_fixed_length_matches_reference_for_seeded_shapes_masks_and_ties(seed):
+@pytest.mark.parametrize("length", range(1, 17))
+@pytest.mark.parametrize("seed", [7, 41])
+def test_fixed_length_matches_reference_for_every_length_and_c63_ties(length, seed):
     rng = np.random.default_rng(seed)
-    vocab = list("abcdef")
-    for T, C, L in ((1, 2, 1), (2, 4, 2), (8, 7, 4), (20, 7, 16)):
-        logits = rng.integers(-2, 3, size=(T, C)).astype(np.float32)
-        for mask in (None, "[a-c]"):
-            expected = _reference_decode(logits, vocab[: C - 1], L, mask)
-            assert decode_fixed_length(logits, vocab[: C - 1], L, mask) == expected
+    vocab = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    for T in (length, max(length + 1, 2 * length - 1)):
+        logits = rng.integers(-2, 3, size=(T, 63)).astype(np.float32)
+        for mask in (None, "[a-f]"):
+            expected = _reference_decode(logits, vocab, length, mask)
+            assert decode_fixed_length(logits, vocab, length, mask) == expected
 
 
-def test_fixed_length_matches_reference_at_t_length_and_preserves_tie_breaks():
-    logits = np.zeros((4, 5), dtype=np.float32)
-    assert decode_fixed_length(logits, list("abcd"), 4) == _reference_decode(
-        logits, list("abcd"), 4
+@pytest.mark.parametrize("length", range(1, 17))
+def test_fixed_length_matches_reference_for_all_equal_c63_predecessor_states(length):
+    vocab = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    logits = np.zeros((max(length, 2 * length - 1), 63), dtype=np.float32)
+    assert decode_fixed_length(logits, vocab, length) == _reference_decode(
+        logits, vocab, length
     )
+
+
+@pytest.mark.parametrize("length", range(2, 17))
+def test_fixed_length_rejects_infeasible_repeated_label_at_every_length(length):
+    with pytest.raises(DecodingError):
+        decode_fixed_length(np.zeros((2 * length - 2, 2)), ["a"], length)
+    with pytest.raises(DecodingError):
+        decode_fixed_length(np.zeros((length - 1, 2)), ["a"], length)
 
 
 def test_fixed_length_matches_reference_for_long_benchmark_shapes():
