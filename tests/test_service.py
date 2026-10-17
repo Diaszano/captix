@@ -218,6 +218,20 @@ def test_invalid_arguments(client, data):
     assert post(client, data=data).status_code == 422
 
 
+def test_unknown_argument_with_all_supported_fields_returns_422(client):
+    response = post(
+        client,
+        data={
+            "mask": "[a]",
+            "length": "1",
+            "case_sensitive": "false",
+            "unknown": "value",
+        },
+    )
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Unknown form field"}
+
+
 @pytest.mark.parametrize(
     "payload", [b"", b"private corrupted bytes", image_bytes()[:40]]
 )

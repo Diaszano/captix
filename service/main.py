@@ -33,7 +33,7 @@ class _ImageFormParser(MultiPartParser):
             request.headers,
             self._bounded_stream(request),
             max_files=1,
-            max_fields=3,
+            max_fields=4,
             max_part_size=4096,
         )
         self.complete = False
