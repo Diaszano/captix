@@ -1,6 +1,6 @@
 [project]
-name = "txtcaptcha"
-version = "0.1.0.9000"
+name = "captix"
+version = "0.1.0"
 description = "Read, annotate, train and decrypt text captchas with a CRNN+CTC model."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -55,6 +55,7 @@ dev = [
     "build>=1.2",
     "twine>=5.0",
     "pre-commit>=4.6,<5",
+    "python-semantic-release==10.7.0",
 ]
 notebook = [
     "jupyter>=1.0",
@@ -66,11 +67,11 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jtrecenti/txtcaptcha"
-Documentation = "https://jtrecenti.github.io/txtcaptcha/"
-Repository = "https://github.com/jtrecenti/txtcaptcha"
-Issues = "https://github.com/jtrecenti/txtcaptcha/issues"
-Changelog = "https://github.com/jtrecenti/txtcaptcha/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Diaszano/captix"
+Documentation = "https://Diaszano.github.io/captix/"
+Repository = "https://github.com/Diaszano/captix"
+Issues = "https://github.com/Diaszano/captix/issues"
+Changelog = "https://github.com/Diaszano/captix/blob/main/CHANGELOG.md"
 "Model (HF Hub)" = "https://huggingface.co/jtrecenti/txtcaptcha-crnn"
 
 [project.scripts]
@@ -92,6 +93,17 @@ include = [
     "CHANGELOG.md",
     "pyproject.toml",
 ]
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+tag_format = "v{version}"
+commit_parser = "conventional"
+allow_zero_version = true
+major_on_zero = true
+commit_message = "chore(release): {version}"
+
+[tool.semantic_release.branches.main]
+match = "main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
