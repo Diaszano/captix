@@ -16,6 +16,8 @@ def parse_mask(
     mask: str | None, vocab: Sequence[str], *, case_sensitive: bool = True
 ) -> np.ndarray:
     """Return a C-sized allowed-class mask, with the blank class enabled."""
+    if not vocab:
+        raise DecodingError("Vocabulary must contain at least one non-blank character")
     allowed = np.zeros(len(vocab) + 1, dtype=bool)
     allowed[0] = True
     if mask is None:

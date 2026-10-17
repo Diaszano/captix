@@ -52,6 +52,11 @@ def test_parse_mask_only_accepts_ascii_character_classes():
             parse_mask(mask, vocab)
 
 
+def test_parse_mask_rejects_empty_vocabulary_without_mask():
+    with pytest.raises(DecodingError):
+        parse_mask(None, [])
+
+
 def test_case_insensitive_mask_lowercases_decoded_text():
     logits = np.array([[0, 0, 5], [0, 0, 5]], dtype=np.float32)
     assert decode_greedy(logits, ["a", "A"], case_sensitive=False) == "a"
