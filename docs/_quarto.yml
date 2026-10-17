@@ -43,7 +43,7 @@ execute:
   enabled: false
 
 quartodoc:
-  package: txtcaptcha
+  package: captix
   title: API reference
   dir: reference
   sidebar: reference/_sidebar.yml
