@@ -9,6 +9,7 @@ services:
     environment:
       CAPTIX_API_TOKEN: ${CAPTIX_API_TOKEN:?Set CAPTIX_API_TOKEN to a nonempty secret}
       CAPTIX_MODEL_DIR: /app/models
+      CAPTIX_UPLOAD_TIMEOUT_SECONDS: ${CAPTIX_UPLOAD_TIMEOUT_SECONDS:-60}
       CAPTIX_METRICS_ENABLED: "false"
       ORT_INTRA_OP_THREADS: "2"
     ports:

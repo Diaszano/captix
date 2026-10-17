@@ -8,7 +8,7 @@ from threading import BoundedSemaphore, Lock
 from time import perf_counter
 
 import numpy as np
-from anyio import CapacityLimiter
+from anyio import CapacityLimiter, fail_after
 from anyio.to_thread import run_sync
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
@@ -208,7 +208,11 @@ def create_app(engine: EngineProtocol, settings: Settings) -> FastAPI:
                 if not slots.acquire(blocking=False):
                     raise HTTPException(429, "Inference capacity exhausted")
                 owner = "request"
-            data, mime, arguments = await _read_image_form(request)
+            try:
+                with fail_after(settings.upload_timeout_seconds):
+                    data, mime, arguments = await _read_image_form(request)
+            except TimeoutError:
+                raise HTTPException(408, "Upload timed out") from None
 
             def worker():
                 nonlocal owner

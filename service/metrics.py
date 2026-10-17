@@ -20,7 +20,19 @@ class Metrics:
         )
 
     def record_status(self, status):
-        if status not in {200, 400, 401, 413, 415, 422, 429, 500, 503, "cancelled"}:
+        if status not in {
+            200,
+            400,
+            401,
+            408,
+            413,
+            415,
+            422,
+            429,
+            500,
+            503,
+            "cancelled",
+        }:
             status = 500
         self.requests.labels(status=str(status)).inc()
 

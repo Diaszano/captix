@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
+from math import isfinite
 from pathlib import Path
 
 
@@ -13,6 +14,7 @@ class Settings:
     max_concurrent: int = 2
     metrics_enabled: bool = False
     metrics_token: str = field(default="", repr=False)
+    upload_timeout_seconds: float = 60
 
     def __post_init__(self):
         if not isinstance(self.api_token, str) or not self.api_token.strip():
@@ -21,6 +23,14 @@ class Settings:
             raise ValueError("ORT_INTRA_OP_THREADS must be a positive integer")
         if type(self.max_concurrent) is not int or self.max_concurrent < 1:
             raise ValueError("max_concurrent must be a positive integer")
+        if (
+            type(self.upload_timeout_seconds) not in {int, float}
+            or not isfinite(self.upload_timeout_seconds)
+            or self.upload_timeout_seconds <= 0
+        ):
+            raise ValueError(
+                "CAPTIX_UPLOAD_TIMEOUT_SECONDS must be positive and finite"
+            )
         if type(self.metrics_enabled) is not bool:
             raise ValueError("CAPTIX_METRICS_ENABLED must be true or false")
         if self.metrics_enabled and (
@@ -41,4 +51,7 @@ class Settings:
             intra_op_threads=int(os.environ.get("ORT_INTRA_OP_THREADS", "2")),
             metrics_enabled=metrics_enabled == "true",
             metrics_token=os.environ.get("CAPTIX_METRICS_TOKEN", ""),
+            upload_timeout_seconds=float(
+                os.environ.get("CAPTIX_UPLOAD_TIMEOUT_SECONDS", "60")
+            ),
         )

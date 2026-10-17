@@ -32,6 +32,15 @@ to 2. `/health/live` reports liveness and `/health/ready` readiness after warmup
 Saturation returns 429; callers should bound retries. Stop with
 `docker compose -f deploy/compose.yaml stop`, preserving the grace interval.
 
+Authenticated uploads reserve an admission slot before multipart parsing. Body
+reading has a total deadline of 60 seconds; expiry returns 408, closes partial
+file buffers, and releases the slot without submitting inference. Set
+`CAPTIX_UPLOAD_TIMEOUT_SECONDS` to a positive finite number of seconds (also
+forwarded by Compose) for clients that need longer uploads. This deadline covers
+upload reading only; it does not interrupt native inference. During shutdown,
+pending uploads can hold reservations until their deadline, subject to the
+container's stop grace interval.
+
 `/metrics` is disabled by default. Enable with `CAPTIX_METRICS_ENABLED=true`
 and a distinct `CAPTIX_METRICS_TOKEN`. Metrics contain aggregate durations and
 bounded status labels, never images or recognized text. Never put secrets in

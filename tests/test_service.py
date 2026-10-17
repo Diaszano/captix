@@ -87,10 +87,32 @@ def test_settings_from_env(monkeypatch, tmp_path):
     monkeypatch.setenv("CAPTIX_API_TOKEN", "test-secret")
     monkeypatch.setenv("CAPTIX_MODEL_DIR", str(tmp_path))
     monkeypatch.setenv("ORT_INTRA_OP_THREADS", "3")
+    monkeypatch.setenv("CAPTIX_UPLOAD_TIMEOUT_SECONDS", "0.25")
     settings = Settings.from_env()
     assert settings.model_dir == tmp_path
     assert settings.intra_op_threads == 3
+    assert settings.upload_timeout_seconds == 0.25
     assert "test-secret" not in repr(settings)
+
+
+def test_upload_timeout_defaults_to_sixty_seconds(monkeypatch):
+    monkeypatch.setenv("CAPTIX_API_TOKEN", "test-secret")
+    monkeypatch.delenv("CAPTIX_UPLOAD_TIMEOUT_SECONDS", raising=False)
+    assert Settings.from_env().upload_timeout_seconds == 60
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "-inf", "", "abc"])
+def test_invalid_upload_timeout_environment_fails(monkeypatch, value):
+    monkeypatch.setenv("CAPTIX_API_TOKEN", "test-secret")
+    monkeypatch.setenv("CAPTIX_UPLOAD_TIMEOUT_SECONDS", value)
+    with pytest.raises(ValueError):
+        Settings.from_env()
+
+
+@pytest.mark.parametrize("value", [0, -1, float("nan"), float("inf"), True, "1"])
+def test_invalid_upload_timeout_setting_fails(value):
+    with pytest.raises(ValueError, match="CAPTIX_UPLOAD_TIMEOUT_SECONDS"):
+        Settings(api_token="test-secret", upload_timeout_seconds=value)
 
 
 @pytest.mark.parametrize("threads", ["0", "-1", "abc"])
@@ -680,6 +702,116 @@ def test_cancelled_upload_releases_reserved_admission(monkeypatch):
                 await asyncio.gather(*requests, return_exceptions=True)
             assert (await async_post(client)).status_code == 200
             assert engine.calls == 2
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("cancel", [False, True], ids=["timeout", "cancellation"])
+def test_stalled_upload_closes_files_and_releases_admission(monkeypatch, cancel):
+    from starlette import formparsers
+
+    from service import main
+
+    async def exercise():
+        engine = FakeEngine()
+        app = create_app(
+            engine,
+            Settings(
+                api_token="test-secret",
+                upload_timeout_seconds=60 if cancel else 0.25,
+                metrics_enabled=True,
+                metrics_token="metrics-secret",
+            ),
+        )
+        files = []
+        spooled_file = formparsers.SpooledTemporaryFile
+
+        def tracked_file(*args, **kwargs):
+            file = spooled_file(*args, **kwargs)
+            files.append(file)
+            return file
+
+        monkeypatch.setattr(formparsers, "SpooledTemporaryFile", tracked_file)
+        waiting = 0
+        receiving_two = anyio.Event()
+
+        async def stalled_body():
+            nonlocal waiting
+            yield (
+                b'--abc\r\nContent-Disposition: form-data; name="image"; '
+                b'filename="private.png"\r\nContent-Type: image/png\r\n\r\npartial'
+            )
+            waiting += 1
+            if waiting == 2:
+                receiving_two.set()
+            await anyio.sleep_forever()
+
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app), base_url="http://test"
+            ) as client,
+        ):
+            submissions = []
+            run_sync = main.run_sync
+
+            async def counted_submission(func, *args, **kwargs):
+                submissions.append(func)
+                return await run_sync(func, *args, **kwargs)
+
+            monkeypatch.setattr(main, "run_sync", counted_submission)
+            requests = [
+                asyncio.create_task(
+                    client.post(
+                        "/v1/ocr",
+                        headers={
+                            **AUTH,
+                            "Content-Type": "multipart/form-data; boundary=abc",
+                        },
+                        content=stalled_body(),
+                    )
+                )
+                for _ in range(2)
+            ]
+            try:
+                await asyncio.wait_for(receiving_two.wait(), 2)
+                assert len(files) == 2
+                assert all(not file.closed for file in files)
+                assert (await async_post(client)).status_code == 429
+                if cancel:
+                    for request in requests:
+                        request.cancel()
+                    results = await asyncio.gather(*requests, return_exceptions=True)
+                    assert all(
+                        isinstance(result, asyncio.CancelledError) for result in results
+                    )
+                else:
+                    responses = await asyncio.wait_for(asyncio.gather(*requests), 2)
+                    assert [response.status_code for response in responses] == [
+                        408,
+                        408,
+                    ]
+                    assert all(
+                        response.json() == {"detail": "Upload timed out"}
+                        for response in responses
+                    )
+                assert all(file.closed for file in files)
+                assert engine.calls == 0
+                assert submissions == []
+                metrics = await client.get(
+                    "/metrics", headers={"Authorization": "Bearer metrics-secret"}
+                )
+                status = "cancelled" if cancel else "408"
+                assert (
+                    f'captix_ocr_requests_total{{status="{status}"}} 2.0'
+                    in metrics.text
+                )
+                assert (await async_post(client)).status_code == 200
+                assert engine.calls == 1
+            finally:
+                for request in requests:
+                    request.cancel()
+                await asyncio.gather(*requests, return_exceptions=True)
 
     asyncio.run(exercise())
 
