@@ -5,16 +5,18 @@ title: Get started
 ## Install
 
 ```bash
-pip install txtcaptcha
+pip install captix
 ```
 
 From source with [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
-git clone https://github.com/jtrecenti/txtcaptcha
-cd txtcaptcha
+git clone https://github.com/Diaszano/captix
+cd captix
 uv sync --extra dev
 ```
+
+The distribution installs as `captix`; Python imports remain `txtcaptcha`.
 
 ## Decrypt a single captcha
 
