@@ -10,6 +10,7 @@ Usage
 
     python scripts/deploy_to_hf.py --repo-id jtrecenti/txtcaptcha-crnn --tag v0.1.0
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,9 +22,8 @@ from dotenv import load_dotenv
 # Add src to path so we can run without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from captix import load_model  # noqa: E402
-from captix.hub import DEFAULT_REPO_ID, push_to_hub  # noqa: E402
-
+from captix import load_model
+from captix.hub import DEFAULT_REPO_ID, push_to_hub
 
 MODEL_CARD = """---
 license: mit

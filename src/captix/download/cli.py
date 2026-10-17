@@ -1,10 +1,11 @@
 """``download_captchas`` CLI entry point."""
+
 from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Optional, Sequence
 
 from ._base import available_sources, download_captchas
 
@@ -29,45 +30,53 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
-        "-n", "--n", type=int, default=16,
+        "-n",
+        "--n",
+        type=int,
+        default=16,
         help="Target number of captchas per source (default: 16).",
     )
     p.add_argument(
-        "-d", "--dest", type=Path, required=True,
+        "-d",
+        "--dest",
+        type=Path,
+        required=True,
         help=(
             "Destination directory. One subdirectory per source will be "
             "created (e.g. <dest>/esaj/)."
         ),
     )
     p.add_argument(
-        "--sleep", type=float, default=0.0,
+        "--sleep",
+        type=float,
+        default=0.0,
         help="Seconds to wait between successful fetches (default: 0).",
     )
     p.add_argument(
-        "--timeout", type=float, default=30.0,
+        "--timeout",
+        type=float,
+        default=30.0,
         help="Per-request timeout in seconds (default: 30).",
     )
     return p
 
 
-def _resolve_sources(requested: Optional[Sequence[str]]) -> List[str]:
+def _resolve_sources(requested: Sequence[str] | None) -> list[str]:
     pool = available_sources()
     if not requested or "all" in requested:
         return pool
     unknown = [s for s in requested if s not in pool]
     if unknown:
-        raise SystemExit(
-            f"Unknown source(s): {unknown}. Available: {pool}"
-        )
+        raise SystemExit(f"Unknown source(s): {unknown}. Available: {pool}")
     # Preserve user order, drop duplicates.
-    seen: List[str] = []
+    seen: list[str] = []
     for s in requested:
         if s not in seen:
             seen.append(s)
     return seen
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     sources = _resolve_sources(args.source)
     total = 0

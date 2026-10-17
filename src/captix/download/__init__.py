@@ -2,8 +2,10 @@
 was trained on. Use :func:`download_captchas` programmatically or the
 ``download_captchas`` CLI.
 """
+
 from __future__ import annotations
 
+from . import _sources  # noqa: F401  — import for side effect (registry)
 from ._base import (
     CaptchaPayload,
     DownloadError,
@@ -13,7 +15,6 @@ from ._base import (
     download_captchas,
     get_source,
 )
-from . import _sources  # noqa: F401  — import for side effect (registry)
 
 __all__ = [
     "CaptchaPayload",

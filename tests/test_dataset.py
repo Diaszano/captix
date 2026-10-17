@@ -2,8 +2,8 @@ import torch
 from PIL import Image
 
 from captix import (
-    CaptchaDataset,
     DEFAULT_VOCAB,
+    CaptchaDataset,
     decode_indices,
     encode_label,
     pad_collate,
@@ -27,6 +27,7 @@ def test_encode_decode_roundtrip():
 
 def test_encode_invalid_char():
     import pytest
+
     with pytest.raises(ValueError):
         encode_label("a$b")
 

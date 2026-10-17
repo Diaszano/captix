@@ -12,18 +12,21 @@ Consumers call :func:`from_pretrained`, which delegates to
 ``~/.cache/huggingface/hub`` cache — the first call downloads, subsequent
 calls with the same ``revision`` return the cached path for free.
 """
+
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional, Union
 
 from .dataset import DEFAULT_VOCAB
 from .model import CRNN
 
-PathLike = Union[str, Path]
+PathLike = str | Path
+
+logger = logging.getLogger(__name__)
 
 #: Default repo consumers pull from when no ``model`` is passed to
 #: :func:`decrypt`. Override by passing a repo id explicitly.
@@ -34,7 +37,7 @@ CONFIG_FILENAME = "config.json"
 MODEL_CARD_FILENAME = "README.md"
 
 
-def _resolve_token(token: Optional[str] = None) -> Optional[str]:
+def _resolve_token(token: str | None = None) -> str | None:
     """Accept an explicit token or fall back to the canonical env vars.
 
     ``huggingface_hub`` itself only reads ``HF_TOKEN``; we additionally
@@ -80,7 +83,7 @@ def save_pretrained(
     model: CRNN,
     save_dir: PathLike,
     *,
-    model_card: Optional[str] = None,
+    model_card: str | None = None,
 ) -> Path:
     """Write ``model.safetensors`` + ``config.json`` (+ optional ``README.md``)
     into ``save_dir``. Returns the directory path.
@@ -94,8 +97,7 @@ def save_pretrained(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     state_dict = {
-        k: v.detach().contiguous().cpu()
-        for k, v in model.state_dict().items()
+        k: v.detach().contiguous().cpu() for k, v in model.state_dict().items()
     }
     save_file(state_dict, str(save_dir / WEIGHTS_FILENAME))
 
@@ -128,9 +130,9 @@ def load_local(save_dir: PathLike) -> CRNN:
 def from_pretrained(
     repo_id: str = DEFAULT_REPO_ID,
     *,
-    revision: Optional[str] = None,
-    token: Optional[str] = None,
-    cache_dir: Optional[PathLike] = None,
+    revision: str | None = None,
+    token: str | None = None,
+    cache_dir: PathLike | None = None,
 ) -> CRNN:
     """Download and load a captix CRNN from the Hugging Face Hub.
 
@@ -149,13 +151,9 @@ def from_pretrained(
     if tok is not None:
         kw["token"] = tok
 
-    weights_path = hf_hub_download(
-        repo_id=repo_id, filename=WEIGHTS_FILENAME, **kw
-    )
+    weights_path = hf_hub_download(repo_id=repo_id, filename=WEIGHTS_FILENAME, **kw)
     # config.json lives next to weights in the same snapshot folder
-    hf_hub_download(
-        repo_id=repo_id, filename=CONFIG_FILENAME, **kw
-    )
+    hf_hub_download(repo_id=repo_id, filename=CONFIG_FILENAME, **kw)
     return load_local(Path(weights_path).parent)
 
 
@@ -163,11 +161,11 @@ def push_to_hub(
     model: CRNN,
     repo_id: str = DEFAULT_REPO_ID,
     *,
-    token: Optional[str] = None,
+    token: str | None = None,
     commit_message: str = "Upload captix CRNN",
     private: bool = False,
-    model_card: Optional[str] = None,
-    tag: Optional[str] = None,
+    model_card: str | None = None,
+    tag: str | None = None,
 ) -> str:
     """Create ``repo_id`` if needed and upload weights, config and model card.
 
@@ -185,9 +183,7 @@ def push_to_hub(
         )
 
     api = HfApi(token=tok)
-    api.create_repo(
-        repo_id=repo_id, repo_type="model", exist_ok=True, private=private
-    )
+    api.create_repo(repo_id=repo_id, repo_type="model", exist_ok=True, private=private)
 
     with tempfile.TemporaryDirectory() as tmp:
         save_pretrained(model, tmp, model_card=model_card)
@@ -201,7 +197,9 @@ def push_to_hub(
     if tag:
         try:
             api.create_tag(repo_id=repo_id, tag=tag, repo_type="model")
-        except Exception:  # noqa: BLE001 — tag may already exist; non-fatal
-            pass
+        except Exception as exc:  # noqa: BLE001 — tag may already exist; non-fatal
+            logger.warning(
+                "Could not create Hub tag %s; upload completed: %s", tag, exc
+            )
 
     return f"https://huggingface.co/{repo_id}"

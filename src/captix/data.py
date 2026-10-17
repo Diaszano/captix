@@ -1,21 +1,29 @@
 """Download and unzip the labeled captcha datasets from the R package releases."""
+
 from __future__ import annotations
 
 import zipfile
 from pathlib import Path
-from typing import List, Union
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
-DATASET_NAMES: List[str] = [
-    "cadesp", "esaj", "jucesp", "rfb", "sei",
-    "tjmg", "tjpe", "tjrs", "trf5", "trt",
+DATASET_NAMES: list[str] = [
+    "cadesp",
+    "esaj",
+    "jucesp",
+    "rfb",
+    "sei",
+    "tjmg",
+    "tjpe",
+    "tjrs",
+    "trf5",
+    "trt",
 ]
 
 DATASET_REPO_BASE = "https://github.com/decryptr/captcha/releases/download/data"
 
 
-def available_datasets() -> List[str]:
+def available_datasets() -> list[str]:
     """List of dataset names published in the R captcha release."""
     return list(DATASET_NAMES)
 
@@ -46,9 +54,10 @@ def download_dataset(
         with requests.get(url, stream=True, timeout=300) as r:
             r.raise_for_status()
             total = int(r.headers.get("content-length", 0))
-            with open(zip_path, "wb") as f, tqdm(
-                total=total, unit="B", unit_scale=True, desc=name
-            ) as bar:
+            with (
+                open(zip_path, "wb") as f,
+                tqdm(total=total, unit="B", unit_scale=True, desc=name) as bar,
+            ):
                 for chunk in r.iter_content(chunk_size=1 << 20):
                     if chunk:
                         f.write(chunk)

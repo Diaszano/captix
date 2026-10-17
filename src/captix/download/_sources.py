@@ -5,6 +5,7 @@ Ported from the R package ``jtrecenti/captchaDownload``. Each fetcher takes a
 returns a :class:`CaptchaPayload`. Parse failures should raise
 :class:`DownloadError` so the batch loop can skip them.
 """
+
 from __future__ import annotations
 
 import base64
@@ -48,9 +49,7 @@ def fetch_cadesp(ctx: FetchContext) -> CaptchaPayload:
     if not m:
         raise DownloadError("cadesp: could not find (S(...)) session id")
     sess = m.group(0)
-    captcha_url = (
-        f"https://www.cadesp.fazenda.sp.gov.br/{sess}/imagemDinamica.aspx"
-    )
+    captcha_url = f"https://www.cadesp.fazenda.sp.gov.br/{sess}/imagemDinamica.aspx"
     img = ctx.get(captcha_url)
     _ensure_ok(img, "cadesp image")
     return CaptchaPayload(content=img.content, ext="jpeg")
@@ -83,8 +82,7 @@ def fetch_esaj(ctx: FetchContext) -> CaptchaPayload:
 # --------------------------------------------------------------------- jucesp
 
 _JUCESP_START = (
-    "https://www.jucesponline.sp.gov.br/"
-    "Pre_Visualiza.aspx?idproduto=&nire=35222827792"
+    "https://www.jucesponline.sp.gov.br/Pre_Visualiza.aspx?idproduto=&nire=35222827792"
 )
 _JUCESP_GUID_RE = re.compile(r"guid=([^\"'&\s]+)")
 
@@ -97,9 +95,7 @@ def fetch_jucesp(ctx: FetchContext) -> CaptchaPayload:
     if not m:
         raise DownloadError("jucesp: could not find captcha guid")
     guid = m.group(1)
-    img = ctx.get(
-        f"https://www.jucesponline.sp.gov.br/CaptchaImage.aspx?guid={guid}"
-    )
+    img = ctx.get(f"https://www.jucesponline.sp.gov.br/CaptchaImage.aspx?guid={guid}")
     _ensure_ok(img, "jucesp image")
     return CaptchaPayload(content=img.content, ext="jpeg")
 
@@ -111,8 +107,7 @@ _RFB_SESSION = (
     "Cnpjreva_Solicitacao_CS.asp"
 )
 _RFB_CAPTCHA = (
-    "http://servicos.receita.fazenda.gov.br/Servicos/cnpjreva/"
-    "captcha/gerarCaptcha.asp"
+    "http://servicos.receita.fazenda.gov.br/Servicos/cnpjreva/captcha/gerarCaptcha.asp"
 )
 
 
@@ -176,9 +171,7 @@ def fetch_tjmg(ctx: FetchContext) -> CaptchaPayload:
 
 # ----------------------------------------------------------------------- tjpe
 
-_TJPE_URL = (
-    "https://srv01.tjpe.jus.br/consultaprocessualunificadaservico/api/captcha"
-)
+_TJPE_URL = "https://srv01.tjpe.jus.br/consultaprocessualunificadaservico/api/captcha"
 
 
 @register("tjpe", verify_ssl=False)
@@ -229,8 +222,7 @@ def fetch_trf5(ctx: FetchContext) -> CaptchaPayload:
 # ------------------------------------------------------------------------ trt
 
 _TRT_URL = (
-    "https://pje-consulta.trt3.jus.br/pje-consulta-api/api/captcha"
-    "?idProcesso=2104879"
+    "https://pje-consulta.trt3.jus.br/pje-consulta-api/api/captcha?idProcesso=2104879"
 )
 
 

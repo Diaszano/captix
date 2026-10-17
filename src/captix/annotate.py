@@ -1,17 +1,18 @@
 """Manual / batch annotation of captcha files."""
+
 from __future__ import annotations
 
 import shutil
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence, Union
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 
 def _annotate_one(
     file: Path,
     label: str,
-    out_dir: Optional[Path],
+    out_dir: Path | None,
     rm_old: bool,
 ) -> Path:
     target_dir = out_dir if out_dir is not None else file.parent
@@ -28,12 +29,12 @@ def _annotate_one(
 
 
 def annotate(
-    files: Union[PathLike, Sequence[PathLike]],
-    labels: Optional[Sequence[str]] = None,
-    path: Optional[PathLike] = None,
+    files: PathLike | Sequence[PathLike],
+    labels: Sequence[str] | None = None,
+    path: PathLike | None = None,
     rm_old: bool = False,
-    prompt: Optional[Callable[[Path], str]] = None,
-) -> List[Path]:
+    prompt: Callable[[Path], str] | None = None,
+) -> list[Path]:
     """Annotate captcha files by appending `_<label>` to the filename.
 
     Parameters
@@ -55,8 +56,10 @@ def annotate(
 
     if labels is None:
         if prompt is None:
+
             def prompt(f: Path) -> str:  # type: ignore[misc]
                 return input(f"Label for {f.name}: ").strip()
+
         labels = [prompt(f) for f in file_list]
     else:
         if len(labels) != len(file_list):
@@ -64,7 +67,4 @@ def annotate(
                 f"labels length ({len(labels)}) must match files length ({len(file_list)})"
             )
 
-    return [
-        _annotate_one(f, lab, out_dir, rm_old)
-        for f, lab in zip(file_list, labels)
-    ]
+    return [_annotate_one(f, lab, out_dir, rm_old) for f, lab in zip(file_list, labels)]

@@ -5,7 +5,6 @@ import re
 import subprocess
 import sys
 
-
 BRANCH_NAME = re.compile(
     r"^(?:main|(?:feat|fix|docs|refactor|test|chore|ci|build|perf)/[a-z0-9]+(?:-[a-z0-9]+)*)$"
 )
@@ -17,7 +16,9 @@ def is_valid_branch_name(branch: str) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--branch", help="branch name to validate (defaults to current branch)")
+    parser.add_argument(
+        "--branch", help="branch name to validate (defaults to current branch)"
+    )
     args = parser.parse_args(argv)
 
     if args.branch is not None:

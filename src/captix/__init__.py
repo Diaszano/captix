@@ -1,62 +1,63 @@
 """captix: Python port of the R captcha package."""
+
 from __future__ import annotations
 
-from .captcha import Captcha, read_captcha
 from .annotate import annotate
+from .captcha import Captcha, read_captcha
+from .data import available_datasets, download_dataset
 from .dataset import (
-    CaptchaDataset,
     DEFAULT_VOCAB,
-    transform_image,
-    encode_label,
+    CaptchaDataset,
     decode_indices,
+    encode_label,
     pad_collate,
+    transform_image,
 )
-from .model import CRNN
-from .fit import fit_model, FitHistory
 from .decrypt import decrypt
-from .load import save_model, load_model, available_models, download_model
-from .data import download_dataset, available_datasets
-from .metrics import sequence_accuracy
 from .download import (
     DownloadError,
     available_sources,
     download_captchas,
 )
+from .fit import FitHistory, fit_model
 from .hub import (
     DEFAULT_REPO_ID,
     from_pretrained,
     push_to_hub,
     save_pretrained,
 )
+from .load import available_models, download_model, load_model, save_model
+from .metrics import sequence_accuracy
+from .model import CRNN
 
 __all__ = [
-    "Captcha",
-    "read_captcha",
-    "annotate",
-    "CaptchaDataset",
-    "DEFAULT_VOCAB",
-    "transform_image",
-    "encode_label",
-    "decode_indices",
-    "pad_collate",
     "CRNN",
-    "fit_model",
-    "FitHistory",
-    "decrypt",
-    "save_model",
-    "load_model",
-    "available_models",
-    "download_model",
-    "download_dataset",
-    "available_datasets",
-    "sequence_accuracy",
-    "download_captchas",
-    "available_sources",
-    "DownloadError",
-    "from_pretrained",
-    "save_pretrained",
-    "push_to_hub",
     "DEFAULT_REPO_ID",
+    "DEFAULT_VOCAB",
+    "Captcha",
+    "CaptchaDataset",
+    "DownloadError",
+    "FitHistory",
+    "annotate",
+    "available_datasets",
+    "available_models",
+    "available_sources",
+    "decode_indices",
+    "decrypt",
+    "download_captchas",
+    "download_dataset",
+    "download_model",
+    "encode_label",
+    "fit_model",
+    "from_pretrained",
+    "load_model",
+    "pad_collate",
+    "push_to_hub",
+    "read_captcha",
+    "save_model",
+    "save_pretrained",
+    "sequence_accuracy",
+    "transform_image",
 ]
 
 __version__ = "1.0.0"

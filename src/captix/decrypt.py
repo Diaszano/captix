@@ -1,9 +1,10 @@
 """decrypt: predict labels for captcha images using a trained CRNN model."""
+
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -13,10 +14,10 @@ from .captcha import Captcha
 from .dataset import BLANK_INDEX, decode_indices, transform_image
 from .model import CRNN
 
-_DEFAULT_MODEL_CACHE: Dict[str, CRNN] = {}
+_DEFAULT_MODEL_CACHE: dict[str, CRNN] = {}
 
 
-def _resolve_model(model: Optional[Union[CRNN, str]]) -> CRNN:
+def _resolve_model(model: CRNN | str | None) -> CRNN:
     """Accept a CRNN instance, a repo id string, or None.
 
     ``None`` pulls :data:`captix.hub.DEFAULT_REPO_ID` from the Hub.
@@ -32,15 +33,16 @@ def _resolve_model(model: Optional[Union[CRNN, str]]) -> CRNN:
         _DEFAULT_MODEL_CACHE[repo] = from_pretrained(repo)
     return _DEFAULT_MODEL_CACHE[repo]
 
-PathLike = Union[str, Path]
-MaskType = Optional[Union[Sequence[str], str, re.Pattern]]
+
+PathLike = str | Path
+MaskType = Sequence[str] | str | re.Pattern | None
 
 
 def _resolve_mask(
     mask: MaskType,
     vocab: Sequence[str],
     case_sensitive: bool,
-) -> Optional[List[bool]]:
+) -> list[bool] | None:
     """Returns a boolean list of length len(vocab): True for allowed chars.
 
     None means "no masking".
@@ -67,7 +69,7 @@ def _resolve_mask(
     return [bool(pat.fullmatch(c)) for c in vocab]
 
 
-def _apply_mask(logits: torch.Tensor, allowed: Optional[List[bool]]) -> torch.Tensor:
+def _apply_mask(logits: torch.Tensor, allowed: list[bool] | None) -> torch.Tensor:
     """Set logits of forbidden classes to -inf. Blank stays untouched."""
     if allowed is None:
         return logits
@@ -80,7 +82,7 @@ def _apply_mask(logits: torch.Tensor, allowed: Optional[List[bool]]) -> torch.Te
     return logits.masked_fill(forbidden, float("-inf"))
 
 
-def _ctc_decode_fixed_length(log_probs: np.ndarray, length: int) -> List[int]:
+def _ctc_decode_fixed_length(log_probs: np.ndarray, length: int) -> list[int]:
     """Find the CTC path whose collapse has exactly ``length`` non-blank chars
     and the highest total log-probability.
 
@@ -100,7 +102,7 @@ def _ctc_decode_fixed_length(log_probs: np.ndarray, length: int) -> List[int]:
     NEG = -np.inf
     dp = np.full((L + 1, C), NEG)
     dp[0, BLANK_INDEX] = 0.0  # virtual start: 0 emitted, last=blank, logp=0
-    bps: List[np.ndarray] = []
+    bps: list[np.ndarray] = []
     ns = np.arange(L + 1)
     i_row = np.arange(C)[None, :]
     for t in range(T):
@@ -162,13 +164,13 @@ def _ctc_decode_fixed_length(log_probs: np.ndarray, length: int) -> List[int]:
 
 @torch.no_grad()
 def decrypt(
-    files: Union[PathLike, Sequence[PathLike], Captcha],
-    model: Optional[Union[CRNN, str]] = None,
+    files: PathLike | Sequence[PathLike] | Captcha,
+    model: CRNN | str | None = None,
     mask: MaskType = None,
     case_sensitive: bool = True,
-    length: Optional[int] = None,
-    device: Optional[Union[str, torch.device]] = None,
-) -> List[str]:
+    length: int | None = None,
+    device: str | torch.device | None = None,
+) -> list[str]:
     """Predict labels for one or more captcha images.
 
     Parameters
@@ -195,7 +197,7 @@ def decrypt(
     model = _resolve_model(model)
 
     if isinstance(files, Captcha):
-        path_list: List[Union[str, Path]] = list(files.paths)
+        path_list: list[str | Path] = list(files.paths)
     elif isinstance(files, (str, Path)):
         path_list = [files]
     else:
@@ -212,7 +214,7 @@ def decrypt(
     allowed = _resolve_mask(mask, model.vocab, case_sensitive)
     logits = _apply_mask(logits, allowed)
 
-    results: List[str] = []
+    results: list[str] = []
     if length is None:
         indices = logits.argmax(dim=-1).transpose(0, 1)  # (B, T)
         for row in indices:

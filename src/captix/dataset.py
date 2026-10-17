@@ -4,12 +4,13 @@ The model uses CTC loss, so labels are encoded as integer sequences with a
 reserved blank index 0. The default vocabulary is the full alphanumeric set
 ``0-9a-zA-Z`` (62 classes), giving 63 logits including blank.
 """
+
 from __future__ import annotations
 
 import re
 import string
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -17,10 +18,12 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 # Default vocabulary: digits + lowercase + uppercase
-DEFAULT_VOCAB: List[str] = list(string.digits + string.ascii_lowercase + string.ascii_uppercase)
+DEFAULT_VOCAB: list[str] = list(
+    string.digits + string.ascii_lowercase + string.ascii_uppercase
+)
 
 # Index 0 is reserved as the CTC blank
 BLANK_INDEX = 0
@@ -50,7 +53,7 @@ def decode_indices(
 
     If `collapse` is True, applies CTC collapse (remove repeats then blanks).
     """
-    out_chars: List[str] = []
+    out_chars: list[str] = []
     prev = -1
     for i in indices:
         i = int(i)
@@ -94,9 +97,9 @@ def _flatten_transparency(img: Image.Image) -> Image.Image:
 
 
 def transform_image(
-    files: Union[PathLike, Sequence[PathLike], Image.Image, Sequence[Image.Image]],
+    files: PathLike | Sequence[PathLike] | Image.Image | Sequence[Image.Image],
     height: int = 32,
-    max_width: Optional[int] = None,
+    max_width: int | None = None,
 ) -> torch.Tensor:
     """Load and resize image(s) to a fixed height, preserving aspect ratio.
 
@@ -109,14 +112,14 @@ def transform_image(
         files_list = list(files)
 
     to_tensor = T.ToTensor()
-    tensors: List[torch.Tensor] = []
+    tensors: list[torch.Tensor] = []
     for f in files_list:
         if isinstance(f, Image.Image):
             img = _flatten_transparency(f)
         else:
             img = _flatten_transparency(Image.open(f))
         w, h = img.size
-        new_w = max(1, int(round(w * (height / h))))
+        new_w = max(1, round(w * (height / h)))
         img = img.resize((new_w, height), Image.BILINEAR)
         tensors.append(to_tensor(img))
 
@@ -132,12 +135,14 @@ def transform_image(
     return torch.stack(padded, dim=0)
 
 
-def _list_files(root: Path) -> List[Path]:
+def _list_files(root: Path) -> list[Path]:
     exts = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".webp"}
-    return sorted(p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in exts)
+    return sorted(
+        p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in exts
+    )
 
 
-def _label_from_path(p: Path) -> Optional[str]:
+def _label_from_path(p: Path) -> str | None:
     m = _LABEL_RE.search(p.stem)
     return m.group(0) if m else None
 
@@ -162,8 +167,8 @@ class CaptchaDataset(Dataset):
         self.height = height
         self.vocab = list(vocab)
         self.case_sensitive = case_sensitive
-        self.files: List[Path] = []
-        self.labels: List[str] = []
+        self.files: list[Path] = []
+        self.labels: list[str] = []
         for f in _list_files(self.root):
             lab = _label_from_path(f)
             if lab is None:
@@ -178,15 +183,15 @@ class CaptchaDataset(Dataset):
     def __len__(self) -> int:
         return len(self.files)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         img_t = transform_image(self.files[idx], height=self.height)[0]  # (3, H, W)
         target = encode_label(self.labels[idx], self.vocab)
         return img_t, target
 
 
 def pad_collate(
-    batch: Sequence[Tuple[torch.Tensor, torch.Tensor]],
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    batch: Sequence[tuple[torch.Tensor, torch.Tensor]],
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Collate function: pads images to the max width and stacks targets.
 
     Returns
