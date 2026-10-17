@@ -5,7 +5,18 @@ from scripts.check_branch_name import is_valid_branch_name, main
 
 @pytest.mark.parametrize(
     "branch",
-    ["main", "feat/novo-parser", "fix/erro-de-decode", "docs/2-exemplos"],
+    [
+        "main",
+        "feat/novo-parser",
+        "fix/erro-de-decode",
+        "docs/2-exemplos",
+        "refactor/limpar-parser",
+        "test/cobrir-branches",
+        "chore/atualizar-lock",
+        "ci/validar-pr",
+        "build/gerar-wheel",
+        "perf/reduzir-latencia",
+    ],
 )
 def test_accepts_main_and_valid_topic_branches(branch):
     assert is_valid_branch_name(branch)
