@@ -54,6 +54,7 @@ dev = [
     "pytest-cov>=5.0",
     "build>=1.2",
     "twine>=5.0",
+    "pre-commit>=4.6,<5",
 ]
 notebook = [
     "jupyter>=1.0",
@@ -95,3 +96,4 @@ include = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+pythonpath = ["."]
