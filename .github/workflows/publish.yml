@@ -1,16 +1,52 @@
 name: Publish to PyPI
 
 on:
+  push:
+    branches: [main]
   release:
     types: [published]
   workflow_dispatch:
 
 jobs:
+  release:
+    if: github.event_name == 'push'
+    name: Create semantic release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: semantic-release-main
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    outputs:
+      released: ${{ steps.semantic-release.outputs.released }}
+      tag: ${{ steps.semantic-release.outputs.tag }}
+      version: ${{ steps.semantic-release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Reset release branch to triggering commit
+        run: git reset --hard ${{ github.sha }}
+
+      - name: Create release
+        id: semantic-release
+        uses: python-semantic-release/python-semantic-release@v10.7.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          changelog: false
+
   build:
+    needs: release
+    if: >-
+      ${{ !cancelled() && ((github.event_name == 'push' && needs.release.result == 'success' && needs.release.outputs.released == 'true') || github.event_name == 'release' || github.event_name == 'workflow_dispatch') }}
     name: Build distributions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && needs.release.outputs.tag || github.event_name == 'release' && github.event.release.tag_name || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -40,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/txtcaptcha
+      url: https://pypi.org/p/captix
     permissions:
       id-token: write
     steps:
