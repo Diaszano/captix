@@ -132,6 +132,7 @@ match = "main"
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+markers = ["integration: requires a working Docker daemon"]
 
 [tool.ruff]
 target-version = "py311"

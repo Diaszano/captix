@@ -1,0 +1,22 @@
+# Allow only the deployment inputs: private datasets, checkpoints, caches,
+# tests, Git history, environments, and secrets stay outside the build context.
+**
+!deploy/
+!deploy/Dockerfile
+!deploy/requirements-runtime.txt
+!src/
+!src/captix_runtime/
+!src/captix_runtime/**
+!service/
+!service/**
+!models/
+!models/model.onnx
+!models/manifest.json
+**/__pycache__/
+**/*.py[cod]
+**/.env*
+**/*.pt
+**/*.pth
+**/*.safetensors
+**/*.pem
+**/*.key

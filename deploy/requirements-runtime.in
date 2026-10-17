@@ -1,0 +1,8 @@
+# Deliberately independent of the training package and its extras.
+onnxruntime==1.24.4
+numpy>=1.24,<3
+Pillow>=10,<13
+fastapi>=0.115,<1
+uvicorn>=0.34,<1
+python-multipart>=0.0.20,<1
+prometheus-client>=0.21,<1

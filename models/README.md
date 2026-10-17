@@ -73,3 +73,59 @@ a revisão correspondente aos arquivos locais e o commit correto do código.
 `export` e `benchmark` são extras de desenvolvimento. ONNX não é dependência
 padrão do pacote de treinamento. A publicação deste artefato para produção
 ainda depende da validação com pesos autorizados e corpus congelado.
+
+## Container Linux/amd64 offline
+
+Prepare um artefato autorizado com o exportador acima, confira a proveniência e
+copie somente `model.onnx` e `manifest.json` para a raiz de `models/`. A imagem
+confere o contrato do manifesto e o SHA-256 durante o build e novamente no
+startup. Sem esses arquivos, com hash incorreto ou sem token, o serviço falha;
+nenhum modelo é baixado automaticamente. O manifesto registra proveniência
+declarada pelo operador; o hash não autentica a origem dos pesos.
+
+```sh
+cp models/captix-v1-onnx-fp32/model.onnx models/model.onnx
+cp models/captix-v1-onnx-fp32/manifest.json models/manifest.json
+docker build --platform linux/amd64 -f deploy/Dockerfile -t captix:dev .
+export CAPTIX_API_TOKEN='SUBSTITUA_POR_UM_SEGREDO_FORTE'
+docker compose -f deploy/compose.yaml up -d
+curl --fail http://127.0.0.1:8000/health/ready
+docker compose -f deploy/compose.yaml down
+```
+
+O build precisa acessar PyPI e obter `python:3.12-slim`; o startup opera offline.
+O runtime contém `captix_runtime`, `service` e as dependências mínimas fixadas
+com hashes, sem instalar o pacote de treinamento, torch, torchvision ou ONNX
+exporter. Para atualizar o lock com uv:
+
+```sh
+uv pip compile deploy/requirements-runtime.in -o deploy/requirements-runtime.txt \
+  --python-version 3.12 --python-platform x86_64-unknown-linux-gnu --generate-hashes
+```
+
+O Compose usa UID/GID 10001, um worker, dois threads intra-op, limite de duas
+CPUs e 1 GiB de RAM, filesystem read-only e tmpfs de 16 MiB. O processo é
+non-root; o daemon Docker pode ser rootful ou rootless. Só a interface loopback
+do host publica a porta 8000. `/metrics` fica desativado, e a imagem não inclui
+token. O encerramento dá 30 segundos ao Uvicorn e 35 segundos ao Compose.
+
+Para verificar offline sem publicar portas:
+
+```sh
+docker run -d --name captix-offline --network none --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,size=16m,mode=1777 --cpus 2 --memory 1g \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  -e CAPTIX_API_TOKEN captix:dev
+docker exec captix-offline python -c \
+  "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health/ready').status)"
+docker stop --time 35 captix-offline
+docker rm captix-offline
+```
+
+Aguarde o healthcheck ficar saudável antes do `docker exec`. A rede `none`
+permite loopback dentro do container; port forwarding não é usado nesse teste.
+`uv run pytest tests/test_container_smoke.py -q` faz build temporário com um
+grafo ONNX **sintético** e testa health offline, UID, upload excessivo, ausência
+das dependências de treinamento, SIGTERM e rejeição de artefatos adulterados ou
+ausentes. O teste remove a imagem temporária e não publica artefatos de produção.
+Docker indisponível gera skip explícito; skip não comprova funcionamento.
