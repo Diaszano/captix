@@ -3,7 +3,7 @@ name = "captix"
 version = "1.0.0"
 description = "Read, annotate, train and decrypt text captchas with a CRNN+CTC model."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [
     { name = "Julio Trecenti", email = "jtrecenti@gmail.com" },
@@ -28,9 +28,10 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Image Recognition",
 ]
@@ -56,6 +57,7 @@ dev = [
     "twine>=5.0",
     "pre-commit>=4.6,<5",
     "python-semantic-release==10.7.0",
+    "ruff>=0.17,<0.18",
 ]
 notebook = [
     "jupyter>=1.0",
@@ -110,3 +112,6 @@ match = "main"
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py311"

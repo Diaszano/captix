@@ -1,4 +1,4 @@
-from captix import fit_model, decrypt
+from captix import decrypt, fit_model
 
 
 def test_fit_model_runs_few_epochs(tmp_labeled_dir):

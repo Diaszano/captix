@@ -1,7 +1,8 @@
 """Evaluation metrics."""
+
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 
 def sequence_accuracy(preds: Sequence[str], targets: Sequence[str]) -> float:

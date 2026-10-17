@@ -1,8 +1,5 @@
 import re
 
-import pytest
-import torch
-
 from captix import CRNN, decrypt
 from captix.decrypt import _resolve_mask
 

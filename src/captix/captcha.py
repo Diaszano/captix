@@ -1,19 +1,20 @@
 """Captcha container class and read_captcha function."""
+
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Union
 
 from PIL import Image
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 _LABEL_RE = re.compile(r"(?<=_)[0-9a-zA-Z]+")
 
 
-def _extract_label(path: Path) -> Optional[str]:
+def _extract_label(path: Path) -> str | None:
     stem = path.stem
     m = _LABEL_RE.search(stem)
     return m.group(0) if m else None
@@ -26,14 +27,14 @@ class Captcha:
     Mirrors the R `captcha` S3 object: a list with `img`, `lab`, `path`.
     """
 
-    images: List[Image.Image] = field(default_factory=list)
-    labels: List[Optional[str]] = field(default_factory=list)
-    paths: List[Path] = field(default_factory=list)
+    images: list[Image.Image] = field(default_factory=list)
+    labels: list[str | None] = field(default_factory=list)
+    paths: list[Path] = field(default_factory=list)
 
     def __len__(self) -> int:
         return len(self.images)
 
-    def __getitem__(self, idx) -> "Captcha":
+    def __getitem__(self, idx) -> Captcha:
         if isinstance(idx, int):
             return Captcha(
                 images=[self.images[idx]],
@@ -83,7 +84,7 @@ class Captcha:
 
 
 def read_captcha(
-    files: Union[PathLike, Sequence[PathLike]],
+    files: PathLike | Sequence[PathLike],
     lab_in_path: bool = False,
 ) -> Captcha:
     """Read one or more captcha image files into a Captcha object.
@@ -94,12 +95,12 @@ def read_captcha(
     lab_in_path: extract label from filename (after the first underscore).
     """
     if isinstance(files, (str, Path)):
-        paths: List[Path] = [Path(files)]
+        paths: list[Path] = [Path(files)]
     else:
         paths = [Path(f) for f in files]
 
-    images: List[Image.Image] = []
-    labels: List[Optional[str]] = []
+    images: list[Image.Image] = []
+    labels: list[str | None] = []
     for p in paths:
         if not p.exists():
             raise FileNotFoundError(p)

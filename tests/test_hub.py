@@ -2,8 +2,10 @@
 
 All HF network calls are mocked — tests must not touch the real Hub.
 """
+
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,7 +23,6 @@ from captix.hub import (
     load_local,
     save_pretrained,
 )
-import importlib
 
 decrypt_mod = importlib.import_module("captix.decrypt")  # the module
 
@@ -42,6 +43,7 @@ def test_save_pretrained_config_has_expected_fields(tmp_path):
     model = CRNN()
     save_pretrained(model, tmp_path)
     import json
+
     cfg = json.loads((tmp_path / CONFIG_FILENAME).read_text(encoding="utf-8"))
     assert cfg["architecture"] == "CRNN"
     assert cfg["library_name"] == "captix"
@@ -176,6 +178,7 @@ def test_push_to_hub_calls_create_and_upload(monkeypatch):
 
     with patch("huggingface_hub.HfApi", FakeApi):
         from captix.hub import push_to_hub
+
         url = push_to_hub(
             CRNN(),
             repo_id="user/repo",
@@ -212,6 +215,7 @@ def test_decrypt_auto_downloads_when_model_none(tmp_path, tmp_captcha_file):
     assert len(out2) == 1
     assert calls["n"] == 1  # only downloaded once
     from captix.hub import DEFAULT_REPO_ID
+
     assert calls["repo"] == DEFAULT_REPO_ID
 
 

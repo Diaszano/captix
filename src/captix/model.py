@@ -8,13 +8,14 @@ This architecture works with arbitrary input image sizes (height is normalized
 during preprocessing; width is preserved). The output sequence length scales
 with the input width, which is what CTC needs.
 """
+
 from __future__ import annotations
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from .dataset import DEFAULT_VOCAB
 
@@ -62,7 +63,7 @@ class CRNN(nn.Module):
         dropout: float = 0.25,
     ):
         super().__init__()
-        self.vocab: List[str] = list(vocab)
+        self.vocab: list[str] = list(vocab)
         self.num_classes = len(self.vocab) + 1  # +1 for CTC blank
 
         c1, c2, c3, c4 = cnn_channels

@@ -1,32 +1,33 @@
 """Training loop for the CRNN captcha model."""
+
 from __future__ import annotations
 
 import math
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
 
 import torch
 from torch.utils.data import DataLoader, Subset
 
 from .dataset import (
     BLANK_INDEX,
-    CaptchaDataset,
     DEFAULT_VOCAB,
+    CaptchaDataset,
     decode_indices,
     pad_collate,
 )
 from .model import CRNN
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 
 @dataclass
 class FitHistory:
-    train_loss: List[float] = field(default_factory=list)
-    valid_loss: List[float] = field(default_factory=list)
-    valid_acc: List[float] = field(default_factory=list)
+    train_loss: list[float] = field(default_factory=list)
+    valid_loss: list[float] = field(default_factory=list)
+    valid_acc: list[float] = field(default_factory=list)
 
 
 def _split_dataset(ds: CaptchaDataset, prop_valid: float, seed: int = 0):
@@ -34,11 +35,11 @@ def _split_dataset(ds: CaptchaDataset, prop_valid: float, seed: int = 0):
     idx = list(range(n))
     rng = random.Random(seed)
     rng.shuffle(idx)
-    n_valid = max(1, int(round(prop_valid * n)))
+    n_valid = max(1, round(prop_valid * n))
     return Subset(ds, idx[n_valid:]), Subset(ds, idx[:n_valid])
 
 
-def _greedy_decode(logits: torch.Tensor, vocab: Sequence[str]) -> List[str]:
+def _greedy_decode(logits: torch.Tensor, vocab: Sequence[str]) -> list[str]:
     """logits: (T, B, C). Returns list of B decoded strings."""
     indices = logits.argmax(dim=-1).transpose(0, 1)  # (B, T)
     return [decode_indices(row.tolist(), vocab, collapse=True) for row in indices]
@@ -85,7 +86,7 @@ def _evaluate(
 
 def fit_model(
     dir: PathLike,
-    dir_valid: Optional[PathLike] = None,
+    dir_valid: PathLike | None = None,
     prop_valid: float = 0.2,
     vocab: Sequence[str] = DEFAULT_VOCAB,
     height: int = 32,
@@ -97,7 +98,7 @@ def fit_model(
     dropout: float = 0.25,
     early_stopping_patience: int = 20,
     early_stopping_min_delta: float = 0.01,
-    device: Optional[Union[str, torch.device]] = None,
+    device: str | torch.device | None = None,
     num_workers: int = 0,
     seed: int = 0,
     verbose: bool = True,
@@ -106,10 +107,14 @@ def fit_model(
 
     Returns a tuple ``(model, history)``.
     """
-    train_ds_full = CaptchaDataset(dir, vocab=vocab, height=height, case_sensitive=case_sensitive)
+    train_ds_full = CaptchaDataset(
+        dir, vocab=vocab, height=height, case_sensitive=case_sensitive
+    )
 
     if dir_valid is None:
-        train_subset, valid_subset = _split_dataset(train_ds_full, prop_valid, seed=seed)
+        train_subset, valid_subset = _split_dataset(
+            train_ds_full, prop_valid, seed=seed
+        )
     else:
         train_subset = train_ds_full
         valid_subset = CaptchaDataset(

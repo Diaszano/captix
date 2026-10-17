@@ -1,5 +1,6 @@
 """Tests for captix.download. All network calls are mocked — these
 tests must not touch the internet."""
+
 from __future__ import annotations
 
 import base64
@@ -10,16 +11,17 @@ import pytest
 
 from captix.download import _base, _sources
 from captix.download._base import (
+    _REGISTRY,
     CaptchaPayload,
     DownloadError,
     FetchContext,
     Source,
-    _REGISTRY,
     available_sources,
     download_captchas,
     get_source,
 )
-from captix.download.cli import main as cli_main, _resolve_sources
+from captix.download.cli import _resolve_sources
+from captix.download.cli import main as cli_main
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"fakepngdata"
 JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"fakejpegdata"
@@ -73,8 +75,16 @@ def _ctx(session):
 
 def test_available_sources_contains_all_ten():
     assert set(available_sources()) == {
-        "cadesp", "esaj", "jucesp", "rfb", "sei",
-        "tjmg", "tjpe", "tjrs", "trf5", "trt",
+        "cadesp",
+        "esaj",
+        "jucesp",
+        "rfb",
+        "sei",
+        "tjmg",
+        "tjpe",
+        "tjrs",
+        "trf5",
+        "trt",
     }
 
 
@@ -93,9 +103,9 @@ def test_get_source_returns_source_object():
 
 
 def test_fetch_cadesp_happy_path():
-    session = FakeSession({
-        ("GET", "https://www.cadesp.fazenda.sp.gov.br/Pages/"):
-            lambda: _response(
+    session = FakeSession(
+        {
+            ("GET", "https://www.cadesp.fazenda.sp.gov.br/Pages/"): lambda: _response(
                 url=(
                     "https://www.cadesp.fazenda.sp.gov.br/"
                     "(S(abc123def456))/Pages/Cadastro/Consultas/"
@@ -103,19 +113,25 @@ def test_fetch_cadesp_happy_path():
                 ),
                 text="<html/>",
             ),
-        ("GET", "https://www.cadesp.fazenda.sp.gov.br/(S(abc123def456))/"):
-            lambda: _response(content=JPEG_BYTES),
-    })
+            (
+                "GET",
+                "https://www.cadesp.fazenda.sp.gov.br/(S(abc123def456))/",
+            ): lambda: _response(content=JPEG_BYTES),
+        }
+    )
     payload = _sources.fetch_cadesp(_ctx(session))
     assert payload.content == JPEG_BYTES
     assert payload.ext == "jpeg"
 
 
 def test_fetch_cadesp_missing_session_id_raises():
-    session = FakeSession({
-        ("GET", "https://www.cadesp.fazenda.sp.gov.br/Pages/"):
-            lambda: _response(url="https://www.cadesp.fazenda.sp.gov.br/err", text="boom"),
-    })
+    session = FakeSession(
+        {
+            ("GET", "https://www.cadesp.fazenda.sp.gov.br/Pages/"): lambda: _response(
+                url="https://www.cadesp.fazenda.sp.gov.br/err", text="boom"
+            ),
+        }
+    )
     with pytest.raises(DownloadError):
         _sources.fetch_cadesp(_ctx(session))
 
@@ -125,23 +141,31 @@ def test_fetch_cadesp_missing_session_id_raises():
 
 def test_fetch_esaj_decodes_data_uri():
     b64 = base64.b64encode(PNG_BYTES).decode()
-    session = FakeSession({
-        ("POST", "http://esaj.tjba.jus.br/cpopg/imagemCaptcha.do"):
-            lambda: _response(json_data={
-                "image": f"data:image/png;base64,{b64}",
-                "uuidCaptcha": "u",
-            }),
-    })
+    session = FakeSession(
+        {
+            ("POST", "http://esaj.tjba.jus.br/cpopg/imagemCaptcha.do"): lambda: (
+                _response(
+                    json_data={
+                        "image": f"data:image/png;base64,{b64}",
+                        "uuidCaptcha": "u",
+                    }
+                )
+            ),
+        }
+    )
     payload = _sources.fetch_esaj(_ctx(session))
     assert payload.content == PNG_BYTES
     assert payload.ext == "png"
 
 
 def test_fetch_esaj_non_json_raises():
-    session = FakeSession({
-        ("POST", "http://esaj.tjba.jus.br/cpopg/imagemCaptcha.do"):
-            lambda: _response(content=b"<html>down</html>"),
-    })
+    session = FakeSession(
+        {
+            ("POST", "http://esaj.tjba.jus.br/cpopg/imagemCaptcha.do"): lambda: (
+                _response(content=b"<html>down</html>")
+            ),
+        }
+    )
     with pytest.raises(DownloadError):
         _sources.fetch_esaj(_ctx(session))
 
@@ -151,22 +175,30 @@ def test_fetch_esaj_non_json_raises():
 
 def test_fetch_jucesp_scrapes_guid():
     html = '<html><img src="CaptchaImage.aspx?guid=XYZ-789"/></html>'
-    session = FakeSession({
-        ("GET", "https://www.jucesponline.sp.gov.br/Pre_Visualiza.aspx"):
-            lambda: _response(text=html),
-        ("GET", "https://www.jucesponline.sp.gov.br/CaptchaImage.aspx?guid=XYZ-789"):
-            lambda: _response(content=JPEG_BYTES),
-    })
+    session = FakeSession(
+        {
+            ("GET", "https://www.jucesponline.sp.gov.br/Pre_Visualiza.aspx"): lambda: (
+                _response(text=html)
+            ),
+            (
+                "GET",
+                "https://www.jucesponline.sp.gov.br/CaptchaImage.aspx?guid=XYZ-789",
+            ): lambda: _response(content=JPEG_BYTES),
+        }
+    )
     payload = _sources.fetch_jucesp(_ctx(session))
     assert payload.ext == "jpeg"
     assert payload.content == JPEG_BYTES
 
 
 def test_fetch_jucesp_missing_guid_raises():
-    session = FakeSession({
-        ("GET", "https://www.jucesponline.sp.gov.br/Pre_Visualiza.aspx"):
-            lambda: _response(text="<html>nope</html>"),
-    })
+    session = FakeSession(
+        {
+            ("GET", "https://www.jucesponline.sp.gov.br/Pre_Visualiza.aspx"): lambda: (
+                _response(text="<html>nope</html>")
+            ),
+        }
+    )
     with pytest.raises(DownloadError):
         _sources.fetch_jucesp(_ctx(session))
 
@@ -175,12 +207,18 @@ def test_fetch_jucesp_missing_guid_raises():
 
 
 def test_fetch_rfb_uses_session_then_captcha():
-    session = FakeSession({
-        ("GET", "http://servicos.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao_CS.asp"):
-            lambda: _response(text="warm"),
-        ("GET", "http://servicos.receita.fazenda.gov.br/Servicos/cnpjreva/captcha/"):
-            lambda: _response(content=PNG_BYTES),
-    })
+    session = FakeSession(
+        {
+            (
+                "GET",
+                "http://servicos.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao_CS.asp",
+            ): lambda: _response(text="warm"),
+            (
+                "GET",
+                "http://servicos.receita.fazenda.gov.br/Servicos/cnpjreva/captcha/",
+            ): lambda: _response(content=PNG_BYTES),
+        }
+    )
     payload = _sources.fetch_rfb(_ctx(session))
     assert payload.content == PNG_BYTES
     assert payload.ext == "png"
@@ -191,21 +229,29 @@ def test_fetch_rfb_uses_session_then_captcha():
 
 def test_fetch_sei_scrapes_img_src():
     html = '<img src="/infra_js/infra_gerar_captcha.php?codetorandom=65-90">'
-    session = FakeSession({
-        ("GET", "https://sei.economia.gov.br/sei/modulos/pesquisa/"):
-            lambda: _response(text=html),
-        ("GET", "https://sei.economia.gov.br/infra_js/infra_gerar_captcha.php"):
-            lambda: _response(content=PNG_BYTES),
-    })
+    session = FakeSession(
+        {
+            ("GET", "https://sei.economia.gov.br/sei/modulos/pesquisa/"): lambda: (
+                _response(text=html)
+            ),
+            (
+                "GET",
+                "https://sei.economia.gov.br/infra_js/infra_gerar_captcha.php",
+            ): lambda: _response(content=PNG_BYTES),
+        }
+    )
     payload = _sources.fetch_sei(_ctx(session))
     assert payload.content == PNG_BYTES
 
 
 def test_fetch_sei_missing_img_raises():
-    session = FakeSession({
-        ("GET", "https://sei.economia.gov.br/sei/modulos/pesquisa/"):
-            lambda: _response(text="<html>gone</html>"),
-    })
+    session = FakeSession(
+        {
+            ("GET", "https://sei.economia.gov.br/sei/modulos/pesquisa/"): lambda: (
+                _response(text="<html>gone</html>")
+            ),
+        }
+    )
     with pytest.raises(DownloadError):
         _sources.fetch_sei(_ctx(session))
 
@@ -214,19 +260,25 @@ def test_fetch_sei_missing_img_raises():
 
 
 def test_fetch_tjmg_happy_path():
-    session = FakeSession({
-        ("GET", "http://www4.tjmg.jus.br/juridico/sf/captcha.svl"):
-            lambda: _response(content=JPEG_BYTES),
-    })
+    session = FakeSession(
+        {
+            ("GET", "http://www4.tjmg.jus.br/juridico/sf/captcha.svl"): lambda: (
+                _response(content=JPEG_BYTES)
+            ),
+        }
+    )
     payload = _sources.fetch_tjmg(_ctx(session))
     assert payload.ext == "jpeg"
 
 
 def test_fetch_tjmg_http_error_raises():
-    session = FakeSession({
-        ("GET", "http://www4.tjmg.jus.br/juridico/sf/captcha.svl"):
-            lambda: _response(content=b"", status=500),
-    })
+    session = FakeSession(
+        {
+            ("GET", "http://www4.tjmg.jus.br/juridico/sf/captcha.svl"): lambda: (
+                _response(content=b"", status=500)
+            ),
+        }
+    )
     with pytest.raises(DownloadError):
         _sources.fetch_tjmg(_ctx(session))
 
@@ -236,10 +288,13 @@ def test_fetch_tjmg_http_error_raises():
 
 def test_fetch_tjpe_decodes_base64():
     b64 = base64.b64encode(PNG_BYTES).decode()
-    session = FakeSession({
-        ("GET", "https://srv01.tjpe.jus.br/"):
-            lambda: _response(json_data={"image": f"data:image/png;base64,{b64}"}),
-    })
+    session = FakeSession(
+        {
+            ("GET", "https://srv01.tjpe.jus.br/"): lambda: _response(
+                json_data={"image": f"data:image/png;base64,{b64}"}
+            ),
+        }
+    )
     payload = _sources.fetch_tjpe(_ctx(session))
     assert payload.content == PNG_BYTES
 
@@ -248,12 +303,14 @@ def test_fetch_tjpe_decodes_base64():
 
 
 def test_fetch_tjrs_warms_session_then_fetches():
-    session = FakeSession({
-        ("GET", "http://www.tjrs.jus.br/busca/"):
-            lambda: _response(text="ok"),
-        ("GET", "https://www.tjrs.jus.br/site_php/consulta/human_check/"):
-            lambda: _response(content=JPEG_BYTES),
-    })
+    session = FakeSession(
+        {
+            ("GET", "http://www.tjrs.jus.br/busca/"): lambda: _response(text="ok"),
+            ("GET", "https://www.tjrs.jus.br/site_php/consulta/human_check/"): lambda: (
+                _response(content=JPEG_BYTES)
+            ),
+        }
+    )
     payload = _sources.fetch_tjrs(_ctx(session))
     assert payload.content == JPEG_BYTES
 
@@ -262,10 +319,14 @@ def test_fetch_tjrs_warms_session_then_fetches():
 
 
 def test_fetch_trf5_returns_bytes():
-    session = FakeSession({
-        ("GET", "https://pje.trf5.jus.br/pjeconsulta/seam/resource/captcha"):
-            lambda: _response(content=JPEG_BYTES),
-    })
+    session = FakeSession(
+        {
+            (
+                "GET",
+                "https://pje.trf5.jus.br/pjeconsulta/seam/resource/captcha",
+            ): lambda: _response(content=JPEG_BYTES),
+        }
+    )
     payload = _sources.fetch_trf5(_ctx(session))
     assert payload.ext == "jpeg"
     assert payload.content == JPEG_BYTES
@@ -276,20 +337,26 @@ def test_fetch_trf5_returns_bytes():
 
 def test_fetch_trt_decodes_plain_base64():
     b64 = base64.b64encode(JPEG_BYTES).decode()
-    session = FakeSession({
-        ("GET", "https://pje-consulta.trt3.jus.br/"):
-            lambda: _response(json_data={"imagem": b64, "tokenDesafio": "tok"}),
-    })
+    session = FakeSession(
+        {
+            ("GET", "https://pje-consulta.trt3.jus.br/"): lambda: _response(
+                json_data={"imagem": b64, "tokenDesafio": "tok"}
+            ),
+        }
+    )
     payload = _sources.fetch_trt(_ctx(session))
     assert payload.content == JPEG_BYTES
     assert payload.ext == "jpeg"
 
 
 def test_fetch_trt_missing_field_raises():
-    session = FakeSession({
-        ("GET", "https://pje-consulta.trt3.jus.br/"):
-            lambda: _response(json_data={"other": 1}),
-    })
+    session = FakeSession(
+        {
+            ("GET", "https://pje-consulta.trt3.jus.br/"): lambda: _response(
+                json_data={"other": 1}
+            ),
+        }
+    )
     with pytest.raises(DownloadError):
         _sources.fetch_trt(_ctx(session))
 
@@ -330,7 +397,9 @@ def test_download_captchas_skips_failures(tmp_path, fake_source_factory):
     assert calls["i"] == 3
 
 
-def test_download_captchas_gives_up_on_persistent_failure(tmp_path, fake_source_factory):
+def test_download_captchas_gives_up_on_persistent_failure(
+    tmp_path, fake_source_factory
+):
     def always_fail(ctx):
         raise DownloadError("nope")
 
@@ -406,9 +475,16 @@ def test_cli_main_invokes_download(monkeypatch, tmp_path):
         return [out]
 
     monkeypatch.setattr("captix.download.cli.download_captchas", fake)
-    ret = cli_main([
-        "--source", "esaj", "--n", "3", "--dest", str(tmp_path),
-    ])
+    ret = cli_main(
+        [
+            "--source",
+            "esaj",
+            "--n",
+            "3",
+            "--dest",
+            str(tmp_path),
+        ]
+    )
     assert ret == 0
     assert seen == [("esaj", 3, tmp_path / "esaj")]
 

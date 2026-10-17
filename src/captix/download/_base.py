@@ -1,12 +1,13 @@
 """Registry, session wrapper and batch loop for captcha downloaders."""
+
 from __future__ import annotations
 
 import time
 import uuid
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Union
 
 import requests
 import urllib3
@@ -14,7 +15,7 @@ import urllib3
 # Several Brazilian court sites ship with expired or self-signed certs.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 
 class DownloadError(Exception):
@@ -59,7 +60,7 @@ class Source:
     verify_ssl: bool = True
 
 
-_REGISTRY: Dict[str, Source] = {}
+_REGISTRY: dict[str, Source] = {}
 
 
 def register(name: str, *, verify_ssl: bool = True) -> Callable[[Fetcher], Fetcher]:
@@ -72,16 +73,14 @@ def register(name: str, *, verify_ssl: bool = True) -> Callable[[Fetcher], Fetch
     return deco
 
 
-def available_sources() -> List[str]:
+def available_sources() -> list[str]:
     """Sorted list of registered source names."""
     return sorted(_REGISTRY)
 
 
 def get_source(name: str) -> Source:
     if name not in _REGISTRY:
-        raise KeyError(
-            f"Unknown source {name!r}. Available: {available_sources()}"
-        )
+        raise KeyError(f"Unknown source {name!r}. Available: {available_sources()}")
     return _REGISTRY[name]
 
 
@@ -110,9 +109,9 @@ def download_captchas(
     *,
     sleep: float = 0.0,
     timeout: float = 30.0,
-    max_attempts: Optional[int] = None,
+    max_attempts: int | None = None,
     on_error: str = "skip",
-) -> List[Path]:
+) -> list[Path]:
     """Download up to ``n`` captchas from ``source`` into ``dest_dir``.
 
     Each successful fetch is written as ``<source>_<hex>.<ext>``. Network or
@@ -131,7 +130,7 @@ def download_captchas(
     if max_attempts is None:
         max_attempts = max(10, n * 3)
 
-    saved: List[Path] = []
+    saved: list[Path] = []
     failures = 0
     while len(saved) < n and failures < max_attempts:
         session = make_session(verify=src.verify_ssl)

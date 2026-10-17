@@ -5,24 +5,33 @@ Note: the original R `captcha` package distributes models serialized via
 pure Python — the format depends on R's torch serialization. ``load_model``
 loads captix-native checkpoints (created via ``save_model``).
 """
+
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
 
 import torch
 
 from .dataset import DEFAULT_VOCAB
 from .model import CRNN
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 # The legacy R `captcha` package publishes one .pt per scraper.
 # These are R-native serializations and are kept here only as a reference of
 # what was historically available.
-LEGACY_R_MODELS: List[str] = [
-    "cadesp", "esaj", "jucesp", "rfb", "sei",
-    "tjmg", "tjpe", "tjrs", "trf5", "trt",
+LEGACY_R_MODELS: list[str] = [
+    "cadesp",
+    "esaj",
+    "jucesp",
+    "rfb",
+    "sei",
+    "tjmg",
+    "tjpe",
+    "tjrs",
+    "trf5",
+    "trt",
 ]
 
 LEGACY_REPO_BASE = "https://github.com/decryptr/captcha/releases/download/captcha_model"
@@ -41,7 +50,7 @@ def save_model(model: CRNN, path: PathLike) -> Path:
     return path
 
 
-def load_model(path: PathLike, map_location: Optional[Union[str, torch.device]] = None) -> CRNN:
+def load_model(path: PathLike, map_location: str | torch.device | None = None) -> CRNN:
     """Load a CRNN model previously saved with :func:`save_model`."""
     path = Path(path)
     if not path.exists():
@@ -61,7 +70,7 @@ def load_model(path: PathLike, map_location: Optional[Union[str, torch.device]] 
     return model
 
 
-def available_models() -> List[str]:
+def available_models() -> list[str]:
     """List of legacy model names from the original R package release.
 
     Provided for reference / dataset name discovery only.
@@ -79,7 +88,9 @@ def download_model(name: str, dest_dir: PathLike) -> Path:
     import requests
 
     if name not in LEGACY_R_MODELS:
-        raise ValueError(f"Unknown legacy model {name!r}. Choose one of {LEGACY_R_MODELS}.")
+        raise ValueError(
+            f"Unknown legacy model {name!r}. Choose one of {LEGACY_R_MODELS}."
+        )
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
     url = f"{LEGACY_REPO_BASE}/{name}.pt"
