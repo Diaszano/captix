@@ -1,0 +1,27 @@
+services:
+  captix:
+    image: captix:dev
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    user: "10001:10001"
+    environment:
+      CAPTIX_API_TOKEN: ${CAPTIX_API_TOKEN:?Set CAPTIX_API_TOKEN to a nonempty secret}
+      CAPTIX_MODEL_DIR: /app/models
+      CAPTIX_UPLOAD_TIMEOUT_SECONDS: ${CAPTIX_UPLOAD_TIMEOUT_SECONDS:-60}
+      CAPTIX_METRICS_ENABLED: "false"
+      ORT_INTRA_OP_THREADS: "2"
+    ports:
+      - "127.0.0.1:8000:8000"
+    cpus: '2.0'
+    mem_limit: 1g
+    pids_limit: 64
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 35s

@@ -67,6 +67,24 @@ docs = [
     "quartodoc>=0.7",
     "griffe<1",
 ]
+export = [
+    "onnx==1.21.0",
+    "onnxruntime==1.24.4",
+    "onnxscript==0.6.2",
+    "torch==2.11.0",
+]
+service = [
+    "onnxruntime==1.24.4",
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.34,<1",
+    "python-multipart>=0.0.20,<1",
+    "prometheus-client>=0.21,<1",
+    "httpx>=0.28,<1",
+]
+benchmark = [
+    "onnxruntime==1.24.4",
+    "psutil>=7",
+]
 
 [project.urls]
 Homepage = "https://github.com/Diaszano/captix"
@@ -84,11 +102,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/captix"]
+packages = ["src/captix", "src/captix_runtime", "service"]
 
 [tool.hatch.build.targets.sdist]
 include = [
     "src/captix",
+    "src/captix_runtime",
+    "service",
     "tests",
     "README.md",
     "LICENSE",
@@ -112,6 +132,7 @@ match = "main"
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+markers = ["integration: requires a working Docker daemon"]
 
 [tool.ruff]
 target-version = "py311"

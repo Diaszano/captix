@@ -16,6 +16,9 @@ docs/notebooks/data
 docs/notebooks/data_merged
 docs/notebooks/data_live
 docs/notebooks/*.pt
+# Private benchmark corpus and generated benchmark output
+benchmarks/corpus-private/
+benchmarks/output/
 .claude/
 
 .env
