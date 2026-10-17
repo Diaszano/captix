@@ -19,3 +19,5 @@ docs/notebooks/*.pt
 .claude/
 
 .env
+# Isolated agent worktrees
+.worktrees/
