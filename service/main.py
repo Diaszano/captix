@@ -8,6 +8,7 @@ from threading import BoundedSemaphore, Lock
 from time import perf_counter
 
 import numpy as np
+from anyio import CapacityLimiter
 from anyio.to_thread import run_sync
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
@@ -156,21 +157,8 @@ def create_app(engine: EngineProtocol, settings: Settings) -> FastAPI:
     slots = BoundedSemaphore(settings.max_concurrent)
     admission = Lock()
     metrics = Metrics()
-
-    def worker(data, mime, arguments):
-        with admission:
-            if not app.state.ready:
-                raise HTTPException(503, "Model is not ready")
-            if not slots.acquire(blocking=False):
-                raise HTTPException(429, "Inference capacity exhausted")
-        started = perf_counter()
-        try:
-            result = _recognize(data, mime, arguments, engine)
-            metrics.record_prediction(result)
-            return result
-        finally:
-            slots.release()
-            metrics.record_total(perf_counter() - started)
+    # Unrelated work using AnyIO's shared limiter must not queue admitted OCR.
+    inference_limiter = CapacityLimiter(settings.max_concurrent)
 
     def drain():
         for _ in range(settings.max_concurrent):
@@ -211,15 +199,41 @@ def create_app(engine: EngineProtocol, settings: Settings) -> FastAPI:
     @app.post("/v1/ocr")
     async def ocr(request: Request):
         status = "cancelled"
+        owner = None
         try:
             authenticate(request, settings.api_token)
-            if not app.state.ready:
-                raise HTTPException(503, "Model is not ready")
+            with admission:
+                if not app.state.ready:
+                    raise HTTPException(503, "Model is not ready")
+                if not slots.acquire(blocking=False):
+                    raise HTTPException(429, "Inference capacity exhausted")
+                owner = "request"
             data, mime, arguments = await _read_image_form(request)
+
+            def worker():
+                nonlocal owner
+                with admission:
+                    # Cancellation may release a reservation before this thread starts.
+                    if owner != "request":
+                        return None
+                    if not app.state.ready:
+                        raise HTTPException(503, "Model is not ready")
+                    owner = "worker"
+                started = perf_counter()
+                try:
+                    result = _recognize(data, mime, arguments, engine)
+                    metrics.record_prediction(result)
+                    return result
+                finally:
+                    with admission:
+                        owner = "released"
+                        slots.release()
+                    metrics.record_total(perf_counter() - started)
+
             # External timeouts cannot interrupt InferenceSession.run(); the worker
             # owns its slot until native work ends, even if the HTTP task is cancelled.
             result = await run_sync(
-                worker, data, mime, arguments, abandon_on_cancel=False
+                worker, abandon_on_cancel=False, limiter=inference_limiter
             )
             status = 200
             return {
@@ -235,6 +249,10 @@ def create_app(engine: EngineProtocol, settings: Settings) -> FastAPI:
             status = 500
             raise HTTPException(500, "Internal server error") from None
         finally:
+            with admission:
+                if owner == "request":
+                    owner = "released"
+                    slots.release()
             metrics.record_status(status)
 
     def authenticate(request, expected_token):

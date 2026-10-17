@@ -561,14 +561,172 @@ def test_upload_finishing_after_shutdown_cannot_enter_engine(monkeypatch):
             transport=httpx.ASGITransport(app), base_url="http://test"
         ) as client:
             request = asyncio.create_task(async_post(client))
+            shutdown = None
             try:
                 await entered.wait()
-                await lifespan.__aexit__(None, None, None)
+                shutdown = asyncio.create_task(lifespan.__aexit__(None, None, None))
+                while app.state.ready:
+                    await anyio.lowlevel.checkpoint()
             finally:
                 release.set()
                 response = await request
+                if shutdown is not None:
+                    await shutdown
+                else:
+                    await lifespan.__aexit__(None, None, None)
             assert response.status_code == 503
             assert engine.calls == 0
+
+    asyncio.run(exercise())
+
+
+def test_admission_rejects_before_parsing_with_shared_threadpool_saturated(monkeypatch):
+    from service import main
+
+    async def exercise():
+        engine = BlockingEngine()
+        app = create_app(engine, Settings(api_token="test-secret"))
+        parsed = 0
+        parsed_two = anyio.Event()
+        read_form = main._read_image_form
+
+        async def counted_read(request):
+            nonlocal parsed
+            parsed += 1
+            result = await read_form(request)
+            if parsed == 2:
+                parsed_two.set()
+            return result
+
+        monkeypatch.setattr(main, "_read_image_form", counted_read)
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app), base_url="http://test"
+            ) as client,
+        ):
+            limiter = anyio.to_thread.current_default_thread_limiter()
+            original_tokens = limiter.total_tokens
+            limiter.total_tokens = 2
+            blockers_entered = threading.Barrier(3)
+            unblock = threading.Event()
+
+            def block_shared_thread():
+                blockers_entered.wait(timeout=5)
+                assert unblock.wait(timeout=5)
+
+            blockers = [
+                asyncio.create_task(anyio.to_thread.run_sync(block_shared_thread))
+                for _ in range(2)
+            ]
+            requests = []
+            try:
+                await asyncio.to_thread(blockers_entered.wait, 5)
+                requests = [asyncio.create_task(async_post(client)) for _ in range(2)]
+                with anyio.fail_after(2):
+                    await parsed_two.wait()
+                await asyncio.to_thread(engine.entered.wait, 2)
+                assert limiter.borrowed_tokens == 2
+                response = await asyncio.wait_for(async_post(client), 1)
+                assert response.status_code == 429
+                assert parsed == 2
+            finally:
+                engine.release.set()
+                unblock.set()
+                await asyncio.gather(*requests, *blockers)
+                limiter.total_tokens = original_tokens
+
+    asyncio.run(exercise())
+
+
+def test_cancelled_upload_releases_reserved_admission(monkeypatch):
+    from service import main
+
+    async def exercise():
+        engine = FakeEngine()
+        app = create_app(engine, Settings(api_token="test-secret"))
+        entered = 0
+        parsed_two = anyio.Event()
+        release = anyio.Event()
+        read_form = main._read_image_form
+
+        async def paused_read(request):
+            nonlocal entered
+            result = await read_form(request)
+            entered += 1
+            if entered == 2:
+                parsed_two.set()
+            await release.wait()
+            return result
+
+        monkeypatch.setattr(main, "_read_image_form", paused_read)
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app), base_url="http://test"
+            ) as client,
+        ):
+            requests = [asyncio.create_task(async_post(client)) for _ in range(2)]
+            try:
+                await parsed_two.wait()
+                assert (
+                    await asyncio.wait_for(async_post(client), 1)
+                ).status_code == 429
+                requests[0].cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await requests[0]
+            finally:
+                release.set()
+                await asyncio.gather(*requests, return_exceptions=True)
+            assert (await async_post(client)).status_code == 200
+            assert engine.calls == 2
+
+    asyncio.run(exercise())
+
+
+def test_cancellation_before_worker_claim_does_not_run_inference(monkeypatch):
+    from service import main
+
+    async def exercise():
+        engine = FakeEngine()
+        app = create_app(engine, Settings(api_token="test-secret"))
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app), base_url="http://test"
+            ) as client,
+        ):
+            run_sync = main.run_sync
+            entered = threading.Event()
+            release = threading.Event()
+            finished = threading.Event()
+
+            async def delayed_submission(func, *args, **kwargs):
+                def delayed_worker():
+                    entered.set()
+                    try:
+                        assert release.wait(timeout=5)
+                        return func(*args)
+                    finally:
+                        finished.set()
+
+                return await run_sync(delayed_worker, **kwargs)
+
+            monkeypatch.setattr(main, "run_sync", delayed_submission)
+            request = asyncio.create_task(async_post(client))
+            try:
+                assert await asyncio.to_thread(entered.wait, 5)
+                request.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await request
+                monkeypatch.setattr(main, "run_sync", run_sync)
+                assert (await async_post(client)).status_code == 200
+            finally:
+                release.set()
+                assert await asyncio.to_thread(finished.wait, 5)
+                await asyncio.gather(request, return_exceptions=True)
+                monkeypatch.setattr(main, "run_sync", run_sync)
+            assert engine.calls == 1
 
     asyncio.run(exercise())
 
