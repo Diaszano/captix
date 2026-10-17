@@ -1,6 +1,6 @@
 [project]
 name = "captix"
-version = "0.1.0"
+version = "1.0.0"
 description = "Read, annotate, train and decrypt text captchas with a CRNN+CTC model."
 readme = "README.md"
 requires-python = ">=3.10"
