@@ -55,7 +55,7 @@ def _model_config(model: CRNN) -> dict:
     """
     return {
         "architecture": "CRNN",
-        "library_name": "txtcaptcha",
+        "library_name": "captix",
         "vocab": list(model.vocab),
         "cnn_channels": [64, 128, 256, 256],
         "rnn_hidden": int(model.rnn.hidden_size),

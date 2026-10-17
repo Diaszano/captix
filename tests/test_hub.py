@@ -44,7 +44,7 @@ def test_save_pretrained_config_has_expected_fields(tmp_path):
     import json
     cfg = json.loads((tmp_path / CONFIG_FILENAME).read_text(encoding="utf-8"))
     assert cfg["architecture"] == "CRNN"
-    assert cfg["library_name"] == "txtcaptcha"
+    assert cfg["library_name"] == "captix"
     assert cfg["rnn_hidden"] == 256
     assert cfg["rnn_layers"] == 2
     assert cfg["blank_index"] == 0
