@@ -14,7 +14,7 @@ def test_distribution_identity_and_wheel_package():
     with open("pyproject.toml", "rb") as f:
         project = tomllib.load(f)
     assert project["project"]["name"] == "captix"
-    assert project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/captix", "src/captix_runtime"]
+    assert project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/captix", "src/captix_runtime", "service"]
     assert "src/captix_runtime" in project["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
 
 
