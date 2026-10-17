@@ -53,7 +53,7 @@ def preprocess_image(
             if width < 4:
                 raise PreprocessingError("invalid_width", "Image width is too small")
             resized_width = max(1, round(width * (32 / height)))
-            if resized_width > max_width:
+            if resized_width < 4 or resized_width > max_width:
                 raise PreprocessingError("invalid_width", "Resized image exceeds the width limit")
             source.verify()
         with Image.open(BytesIO(data)) as source:

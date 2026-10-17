@@ -56,6 +56,7 @@ def test_rejects_animated_images(fmt):
 @pytest.mark.parametrize("data,kwargs,code", [
     (encoded(Image.new("RGB", (2001, 2000))), {}, "too_many_pixels"),
     (encoded(Image.new("RGB", (3, 32))), {}, "invalid_width"),
+    (encoded(Image.new("RGB", (4, 100))), {}, "invalid_width"),
     (encoded(Image.new("RGB", (1025, 32))), {}, "invalid_width"),
     (b"not an image", {}, "invalid_image"),
     (b"random bytes", {}, "invalid_image"),

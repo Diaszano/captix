@@ -15,6 +15,7 @@ def test_distribution_identity_and_wheel_package():
         project = tomllib.load(f)
     assert project["project"]["name"] == "captix"
     assert project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/captix", "src/captix_runtime"]
+    assert "src/captix_runtime" in project["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
 
 
 @pytest.mark.parametrize(("width", "timesteps"), [(80, 20), (160, 40)])

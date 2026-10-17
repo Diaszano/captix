@@ -89,6 +89,7 @@ packages = ["src/captix", "src/captix_runtime"]
 [tool.hatch.build.targets.sdist]
 include = [
     "src/captix",
+    "src/captix_runtime",
     "tests",
     "README.md",
     "LICENSE",
