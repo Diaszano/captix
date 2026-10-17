@@ -4,10 +4,15 @@ import re
 import secrets
 from contextlib import asynccontextmanager
 from io import BytesIO
+from threading import BoundedSemaphore, Lock
+from time import perf_counter
 
 import numpy as np
+from anyio.to_thread import run_sync
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
 from PIL import Image, UnidentifiedImageError
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from python_multipart.multipart import parse_options_header
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
@@ -17,6 +22,7 @@ from captix_runtime.engine import OnnxEngine
 from captix_runtime.pipeline import EngineProtocol, PipelineError, recognize
 from captix_runtime.preprocessing import PreprocessingError
 
+from .metrics import Metrics
 from .settings import Settings
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -147,6 +153,31 @@ def _recognize(data, mime, arguments, engine):
 
 
 def create_app(engine: EngineProtocol, settings: Settings) -> FastAPI:
+    slots = BoundedSemaphore(settings.max_concurrent)
+    admission = Lock()
+    metrics = Metrics()
+
+    def worker(data, mime, arguments):
+        with admission:
+            if not app.state.ready:
+                raise HTTPException(503, "Model is not ready")
+            if not slots.acquire(blocking=False):
+                raise HTTPException(429, "Inference capacity exhausted")
+        started = perf_counter()
+        try:
+            result = _recognize(data, mime, arguments, engine)
+            metrics.record_prediction(result)
+            return result
+        finally:
+            slots.release()
+            metrics.record_total(perf_counter() - started)
+
+    def drain():
+        for _ in range(settings.max_concurrent):
+            slots.acquire()
+        for _ in range(settings.max_concurrent):
+            slots.release()
+
     @asynccontextmanager
     async def lifespan(app):
         app.state.ready = False
@@ -154,11 +185,14 @@ def create_app(engine: EngineProtocol, settings: Settings) -> FastAPI:
             await run_in_threadpool(engine.warmup)
         else:
             await run_in_threadpool(engine.infer, np.zeros((1, 3, 32, 32), np.float32))
-        app.state.ready = True
+        with admission:
+            app.state.ready = True
         try:
             yield
         finally:
-            app.state.ready = False
+            with admission:
+                app.state.ready = False
+            await run_sync(drain, abandon_on_cancel=False)
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.ready = False
@@ -176,29 +210,52 @@ def create_app(engine: EngineProtocol, settings: Settings) -> FastAPI:
 
     @app.post("/v1/ocr")
     async def ocr(request: Request):
-        scheme, _, token = request.headers.get("authorization", "").partition(" ")
-        valid = secrets.compare_digest(
-            token.encode("utf-8"), settings.api_token.encode("utf-8")
-        )
-        if scheme.lower() != "bearer" or not valid:
-            raise HTTPException(
-                401, "Invalid credentials", headers={"WWW-Authenticate": "Bearer"}
-            )
-        if not app.state.ready:
-            raise HTTPException(503, "Model is not ready")
+        status = "cancelled"
         try:
+            authenticate(request, settings.api_token)
+            if not app.state.ready:
+                raise HTTPException(503, "Model is not ready")
             data, mime, arguments = await _read_image_form(request)
-            result = await run_in_threadpool(_recognize, data, mime, arguments, engine)
+            # External timeouts cannot interrupt InferenceSession.run(); the worker
+            # owns its slot until native work ends, even if the HTTP task is cancelled.
+            result = await run_sync(
+                worker, data, mime, arguments, abandon_on_cancel=False
+            )
+            status = 200
             return {
                 "text": result.text,
                 "model_version": engine.version,
                 "decoder": result.decoder,
                 "processing_ms": result.processing_ms,
             }
-        except HTTPException:
+        except HTTPException as exc:
+            status = exc.status_code
             raise
         except Exception:  # noqa: BLE001 — Keep internal failures out of HTTP responses.
+            status = 500
             raise HTTPException(500, "Internal server error") from None
+        finally:
+            metrics.record_status(status)
+
+    def authenticate(request, expected_token):
+        scheme, _, token = request.headers.get("authorization", "").partition(" ")
+        valid = secrets.compare_digest(
+            token.encode("utf-8"), expected_token.encode("utf-8")
+        )
+        if scheme.lower() != "bearer" or not valid:
+            raise HTTPException(
+                401, "Invalid credentials", headers={"WWW-Authenticate": "Bearer"}
+            )
+
+    if settings.metrics_enabled:
+
+        @app.get("/metrics")
+        async def get_metrics(request: Request):
+            authenticate(request, settings.metrics_token)
+            return Response(
+                generate_latest(metrics.registry),
+                headers={"Content-Type": CONTENT_TYPE_LATEST},
+            )
 
     return app
 

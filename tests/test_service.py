@@ -1,6 +1,10 @@
+import asyncio
 import os
+import threading
 from io import BytesIO
 
+import anyio
+import httpx
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
@@ -401,3 +405,259 @@ def test_optional_real_artifact(monkeypatch):
     with TestClient(app) as client:
         assert client.get("/health/ready").status_code == 200
         assert post(client).status_code == 200
+
+
+class BlockingEngine(FakeEngine):
+    def __init__(self):
+        super().__init__()
+        self.entered = threading.Barrier(3)
+        self.release = threading.Event()
+
+    def infer(self, images):
+        self.entered.wait(timeout=5)
+        if not self.release.wait(timeout=5):
+            raise RuntimeError("test failed to release native inference")
+        return super().infer(images)
+
+
+async def async_post(client):
+    return await client.post(
+        "/v1/ocr",
+        headers=AUTH,
+        files={"image": ("private.png", image_bytes(), "image/png")},
+    )
+
+
+@pytest.mark.parametrize("repeat", range(10))
+def test_saturation_cancellation_and_recovery(repeat):
+    async def exercise():
+        engine = BlockingEngine()
+        app = create_app(engine, Settings(api_token="test-secret"))
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app), base_url="http://test"
+            ) as client,
+        ):
+            cancelled = anyio.CancelScope()
+            finished = anyio.Event()
+
+            async def cancellable_request():
+                with cancelled:
+                    await async_post(client)
+                finished.set()
+
+            async with anyio.create_task_group() as tasks:
+                tasks.start_soon(cancellable_request)
+                tasks.start_soon(async_post, client)
+                try:
+                    await asyncio.to_thread(engine.entered.wait, 5)
+                    response = await asyncio.wait_for(async_post(client), 1)
+                    assert response.status_code == 429
+                    assert response.json() == {"detail": "Inference capacity exhausted"}
+                    cancelled.cancel()
+                    await anyio.lowlevel.checkpoint()
+                    assert not finished.is_set()
+                    assert (
+                        await asyncio.wait_for(async_post(client), 1)
+                    ).status_code == 429
+                finally:
+                    engine.release.set()
+            assert engine.calls == 2
+            # Stop blocking subsequent calls; both completed workers must release slots.
+            engine.entered = threading.Barrier(1)
+            assert (await async_post(client)).status_code == 200
+
+    asyncio.run(exercise())
+
+
+def test_shutdown_disables_admissions_and_waits_for_native_work():
+    async def exercise():
+        engine = BlockingEngine()
+        app = create_app(engine, Settings(api_token="test-secret"))
+        lifespan = app.router.lifespan_context(app)
+        await lifespan.__aenter__()
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app), base_url="http://test"
+        ) as client:
+            requests = [asyncio.create_task(async_post(client)) for _ in range(2)]
+            shutdown = None
+            try:
+                await asyncio.to_thread(engine.entered.wait, 5)
+                shutdown = asyncio.create_task(lifespan.__aexit__(None, None, None))
+                for _ in range(100):
+                    if not app.state.ready:
+                        break
+                    await anyio.sleep(0.001)
+                assert (await client.get("/health/ready")).status_code == 503
+                assert (await async_post(client)).status_code == 503
+                assert not shutdown.done()
+            finally:
+                engine.release.set()
+                responses = await asyncio.gather(*requests)
+                if shutdown is not None:
+                    await shutdown
+                else:
+                    await lifespan.__aexit__(None, None, None)
+            assert [response.status_code for response in responses] == [200, 200]
+
+    asyncio.run(exercise())
+
+
+def test_worker_failure_releases_slots(client, engine):
+    engine.error = RuntimeError("private engine failure")
+    for _ in range(3):
+        assert post(client).status_code == 500
+    engine.error = None
+    assert post(client).status_code == 200
+
+
+def test_cancelled_asyncio_request_keeps_native_slot():
+    async def exercise():
+        engine = BlockingEngine()
+        app = create_app(engine, Settings(api_token="test-secret"))
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app), base_url="http://test"
+            ) as client,
+        ):
+            requests = [asyncio.create_task(async_post(client)) for _ in range(2)]
+            try:
+                await asyncio.to_thread(engine.entered.wait, 5)
+                requests[0].cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await requests[0]
+                assert (
+                    await asyncio.wait_for(async_post(client), 1)
+                ).status_code == 429
+            finally:
+                engine.release.set()
+                await asyncio.gather(*requests, return_exceptions=True)
+
+    asyncio.run(exercise())
+
+
+def test_upload_finishing_after_shutdown_cannot_enter_engine(monkeypatch):
+    from service import main
+
+    async def exercise():
+        engine = FakeEngine()
+        app = create_app(engine, Settings(api_token="test-secret"))
+        entered = anyio.Event()
+        release = anyio.Event()
+        read_form = main._read_image_form
+
+        async def paused_read(request):
+            result = await read_form(request)
+            entered.set()
+            await release.wait()
+            return result
+
+        monkeypatch.setattr(main, "_read_image_form", paused_read)
+        lifespan = app.router.lifespan_context(app)
+        await lifespan.__aenter__()
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app), base_url="http://test"
+        ) as client:
+            request = asyncio.create_task(async_post(client))
+            try:
+                await entered.wait()
+                await lifespan.__aexit__(None, None, None)
+            finally:
+                release.set()
+                response = await request
+            assert response.status_code == 503
+            assert engine.calls == 0
+
+    asyncio.run(exercise())
+
+
+def test_metrics_disabled_by_default(client):
+    assert client.get("/metrics", headers=AUTH).status_code == 404
+
+
+@pytest.mark.parametrize("token", [None, "", "   ", "test-secret"])
+def test_enabled_metrics_require_independent_token(monkeypatch, token):
+    monkeypatch.setenv("CAPTIX_API_TOKEN", "test-secret")
+    monkeypatch.setenv("CAPTIX_METRICS_ENABLED", "true")
+    if token is None:
+        monkeypatch.delenv("CAPTIX_METRICS_TOKEN", raising=False)
+    else:
+        monkeypatch.setenv("CAPTIX_METRICS_TOKEN", token)
+    with pytest.raises(ValueError, match="CAPTIX_METRICS_TOKEN"):
+        Settings.from_env()
+
+
+@pytest.mark.parametrize("value", ["perhaps", "1", ""])
+def test_invalid_metrics_flag_fails_closed(monkeypatch, value):
+    monkeypatch.setenv("CAPTIX_API_TOKEN", "test-secret")
+    monkeypatch.setenv("CAPTIX_METRICS_ENABLED", value)
+    with pytest.raises(ValueError, match="CAPTIX_METRICS_ENABLED"):
+        Settings.from_env()
+
+
+def test_metrics_authentication_aggregates_and_privacy(monkeypatch, caplog):
+    from prometheus_client.parser import text_string_to_metric_families
+
+    monkeypatch.setenv("CAPTIX_API_TOKEN", "test-secret")
+    monkeypatch.setenv("CAPTIX_METRICS_ENABLED", "true")
+    monkeypatch.setenv("CAPTIX_METRICS_TOKEN", "private-metrics-token")
+    settings = Settings.from_env()
+    assert "private-metrics-token" not in repr(settings)
+    app = create_app(FakeEngine(), settings)
+    with TestClient(app) as client:
+        for header in [
+            None,
+            "Bearer wrong",
+            "Basic private-metrics-token",
+            "Bearer test-secret",
+        ]:
+            response = client.get(
+                "/metrics", headers={} if header is None else {"Authorization": header}
+            )
+            assert response.status_code == 401
+            assert response.headers["www-authenticate"] == "Bearer"
+        metrics_auth = {"Authorization": "Bearer private-metrics-token"}
+        assert post(client, headers=metrics_auth).status_code == 401
+        assert post(client).status_code == 200
+        assert post(client, data={"mask": "[a]", "length": "1"}).status_code == 200
+        invalid = post(client, data={"mask": "private-mask-value"})
+        assert invalid.status_code == 422
+        response = client.get("/metrics", headers=metrics_auth)
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/plain")
+        samples = [
+            sample
+            for family in text_string_to_metric_families(response.text)
+            for sample in family.samples
+        ]
+        counts = {
+            sample.labels["stage"]: sample.value
+            for sample in samples
+            if sample.name == "captix_ocr_duration_seconds_count"
+        }
+        assert counts == {"preprocess": 2, "inference": 2, "decode": 2, "total": 3}
+        statuses = {
+            sample.labels["status"]: sample.value
+            for sample in samples
+            if sample.name == "captix_ocr_requests_total"
+        }
+        assert statuses == {"200": 2, "401": 1, "422": 1}
+        for sample in samples:
+            assert set(sample.labels) <= {"stage", "status", "le"}
+        exposed = response.text + invalid.text + caplog.text
+        for private in [
+            "test-secret",
+            "private-metrics-token",
+            "private.png",
+            "private-mask-value",
+            "A1",
+        ]:
+            assert private not in exposed
+
+    # Registries must be per app, including repeated startup in one process.
+    with TestClient(create_app(FakeEngine(), settings)) as client:
+        response = client.get("/metrics", headers=metrics_auth)
+        assert response.status_code == 200
+        assert 'captix_ocr_requests_total{status="200"} 2.0' not in response.text
