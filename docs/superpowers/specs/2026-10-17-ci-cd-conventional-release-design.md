@@ -12,8 +12,11 @@ publishing when qualifying changes reach `main`.
   pull requests targeting `main`.
 - `publish.yml` builds distributions and publishes to PyPI with Trusted
   Publishing when a release is published, or when manually dispatched.
-- The repository has tag `v0.1.0`; `CHANGELOG.md` records PyPI version `0.1.0`
-  from 2026-04-11. `pyproject.toml` currently declares `0.1.0.9000`.
+- The canonical GitHub repository is `Diaszano/captix`; `captix` is a new PyPI
+  distribution name. The existing `txtcaptcha` distribution and its Trusted
+  Publisher belong to the upstream project and must not be reused.
+- The repository has tag `v0.1.0`; `pyproject.toml` currently declares
+  `0.1.0.9000`. The Python import package remains `txtcaptcha` for compatibility.
 - The repo has no pre-commit configuration or commit/branch validation.
 
 ## Contribution rules
@@ -65,8 +68,11 @@ Release rules:
 | `BREAKING CHANGE` footer or `!` | Major |
 | `docs`, `refactor`, `test`, `chore`, `ci`, `build` | No release by itself |
 
-The current package version is reset to the existing published baseline,
-`0.1.0`, before automation is enabled. This does not create a release. Future
+The distribution name in project metadata is `captix`; Python imports continue
+to use `txtcaptcha`. Its version starts from the repository's existing `0.1.0`
+tag baseline; this does not publish a release. Configure `allow_zero_version`
+so ordinary feature and fix releases stay in `0.x`, while breaking changes
+advance to `1.0.0`. Future
 qualifying commits merged to `main` cause semantic-release to update the
 version, create a `vX.Y.Z` tag, and create a GitHub Release.
 Since the current version is `0.x`, a breaking change advances it to `1.0.0`.
@@ -96,7 +102,10 @@ version commit does not contain a release-triggering Conventional Commit, so
 its push does not produce a second release.
 
 No personal access token or new repository secret is required. GitHub creates
-`GITHUB_TOKEN` for the release job; PyPI authentication remains OIDC.
+`GITHUB_TOKEN` for the release job; PyPI authentication remains OIDC. Configure
+a PyPI pending Trusted Publisher for `Diaszano/captix`, workflow `publish.yml`,
+and environment `pypi`; the first successful upload creates the new `captix`
+project.
 
 ## Repository settings
 

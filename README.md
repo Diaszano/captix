@@ -1,15 +1,15 @@
-# txtcaptcha
+# Captix
 
-[![PyPI](https://img.shields.io/pypi/v/txtcaptcha.svg)](https://pypi.org/project/txtcaptcha/)
-[![Python](https://img.shields.io/pypi/pyversions/txtcaptcha.svg)](https://pypi.org/project/txtcaptcha/)
+[![PyPI](https://img.shields.io/pypi/v/captix.svg)](https://pypi.org/project/captix/)
+[![Python](https://img.shields.io/pypi/pyversions/captix.svg)](https://pypi.org/project/captix/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Model on HF](https://img.shields.io/badge/%F0%9F%A4%97%20HF-jtrecenti%2Ftxtcaptcha--crnn-yellow)](https://huggingface.co/jtrecenti/txtcaptcha-crnn)
-[![Docs](https://img.shields.io/badge/docs-online-brightgreen)](https://jtrecenti.github.io/txtcaptcha/)
+[![Docs](https://img.shields.io/badge/docs-online-brightgreen)](https://Diaszano.github.io/captix/)
 
 Read, annotate, train and decrypt **text captchas in images** with a modern
 CRNN + CTC pipeline in PyTorch.
 
-`txtcaptcha` ships:
+Captix ships:
 
 - a CRNN architecture that handles **arbitrary input sizes** and
   **variable-length labels**,
@@ -24,16 +24,18 @@ CRNN + CTC pipeline in PyTorch.
 ## Installation
 
 ```bash
-pip install txtcaptcha
+pip install captix
 ```
 
 Or from source with [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
-git clone https://github.com/jtrecenti/txtcaptcha
-cd txtcaptcha
+git clone https://github.com/Diaszano/captix
+cd captix
 uv sync --extra dev
 ```
+
+The distribution installs as `captix`; Python imports remain `txtcaptcha`.
 
 ## Quick start
 
@@ -107,7 +109,7 @@ push_to_hub(
 | `download_captchas` (CLI) | Download live, unlabeled captchas from 10 Brazilian sources. |
 | `sequence_accuracy(preds, targets)` | Exact-match accuracy metric. |
 
-Full API reference: **<https://jtrecenti.github.io/txtcaptcha/>**.
+Full API reference: **<https://Diaszano.github.io/captix/>**.
 
 ## Architecture
 
