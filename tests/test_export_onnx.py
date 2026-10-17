@@ -12,6 +12,7 @@ import onnxruntime as ort
 import pytest
 import torch
 
+from captix.dataset import DEFAULT_VOCAB
 from captix.hub import load_local
 from captix.model import CRNN
 from scripts.export_onnx import export_checkpoint
@@ -83,12 +84,12 @@ def checkpoint(tmp_path, monkeypatch):
     source.mkdir()
     torch.manual_seed(7)
     model = CRNN(
-        vocab=list("ab"), cnn_channels=(2, 2, 2, 2), rnn_hidden=2, rnn_layers=2
+        vocab=DEFAULT_VOCAB, cnn_channels=(2, 2, 2, 2), rnn_hidden=2, rnn_layers=2
     )
     save_file(model.state_dict(), str(source / "model.safetensors"))
     config = {
         "architecture": "CRNN",
-        "vocab": list("ab"),
+        "vocab": list(DEFAULT_VOCAB),
         "cnn_channels": [2, 2, 2, 2],
         "rnn_hidden": 2,
         "rnn_layers": 2,
@@ -107,6 +108,44 @@ def test_export_rejects_unpinned_provenance(checkpoint, tmp_path, argument):
     with pytest.raises(ValueError, match="SHA"):
         export_checkpoint(checkpoint, tmp_path / "out", **provenance)
     assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        pytest.param("architecture", None, id="missing-architecture"),
+        pytest.param("architecture", "Transformer", id="invalid-architecture"),
+        pytest.param("architecture", ["CRNN"], id="non-string-architecture"),
+        pytest.param("vocab", None, id="missing-vocab"),
+        pytest.param("vocab", [], id="empty-vocab"),
+        pytest.param("vocab", DEFAULT_VOCAB[::-1], id="reordered-vocab"),
+        pytest.param("vocab", DEFAULT_VOCAB[:-1], id="truncated-vocab"),
+        pytest.param("vocab", DEFAULT_VOCAB + ["0"], id="duplicate-vocab"),
+        pytest.param("vocab", DEFAULT_VOCAB[:-1] + ["?"], id="invalid-vocab"),
+        pytest.param("vocab", "".join(DEFAULT_VOCAB), id="non-list-vocab"),
+    ],
+)
+def test_export_rejects_unsupported_config_before_loading(
+    checkpoint, tmp_path, monkeypatch, field, value
+):
+    config_path = checkpoint / "config.json"
+    config = json.loads(config_path.read_text())
+    if value is None:
+        config.pop(field)
+    else:
+        config[field] = value
+    config_path.write_text(json.dumps(config))
+
+    def forbidden_load(*args, **kwargs):
+        pytest.fail("unsupported checkpoint config reached model loading")
+
+    monkeypatch.setattr("captix.hub.load_local", forbidden_load)
+    output = tmp_path / "out"
+    with pytest.raises(ValueError, match=field):
+        export_checkpoint(
+            checkpoint, output, revision_sha=REVISION, source_commit=SOURCE_COMMIT
+        )
+    assert not output.exists()
 
 
 def test_failed_export_does_not_publish_partial_artifacts(
@@ -179,7 +218,7 @@ def test_export_local_crnn_preserves_dynamic_width_and_manifest(checkpoint, tmp_
         with torch.inference_mode():
             expected = reference(images).numpy()
         actual = session.run(["logits"], {"images": images.numpy()})[0]
-        assert actual.shape == (width // 4, 1, 3)
+        assert actual.shape == (width // 4, 1, 63)
         np.testing.assert_allclose(actual, expected, atol=1e-5, rtol=1e-4)
 
     manifest = json.loads((output / "manifest.json").read_text())
@@ -201,7 +240,9 @@ def test_export_local_crnn_preserves_dynamic_width_and_manifest(checkpoint, tmp_
     assert manifest["input_name"] == "images"
     assert manifest["output_name"] == "logits"
     assert manifest["dtype"] == "float32"
-    assert manifest["vocab"] == ["a", "b"]
+    assert manifest["vocab"] == list(
+        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    )
     assert manifest["blank_index"] == 0
     assert manifest["width_range"] == [4, 1024]
     assert manifest["input_scale"] == [0, 1]

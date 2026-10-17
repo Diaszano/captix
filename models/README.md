@@ -37,6 +37,9 @@ O exportador usa `captix.hub.load_local()`, CPU, FP32 e modo `eval()`. Não há
 acesso remoto nem carregamento de arquivos pickle. O diretório de saída precisa
 ser novo; os artefatos só são publicados após a exportação e o ONNX checker
 terminarem. Uma falha não publica saída parcial nem substitui artefatos antigos.
+Antes de carregar os pesos, exige `architecture="CRNN"` e `vocab` explícito
+com os 62 caracteres `0-9a-zA-Z`, exatamente na ordem original. Vocabulário
+ausente, alterado, duplicado ou reordenado é rejeitado sem assumir um padrão.
 
 O contrato é `images: float32[1,3,32,W]` para `logits: float32[T,1,C]`, com
 `T=floor(W/4)`, `C=len(vocab)+1`, blank `0`, RGB na escala `0..1` e largura

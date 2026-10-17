@@ -33,10 +33,15 @@ def export_checkpoint(
 
     import onnx
 
+    from captix.dataset import DEFAULT_VOCAB
     from captix.hub import load_local
 
     source_dir, out_dir = Path(source_dir), Path(out_dir)
     config = json.loads((source_dir / "config.json").read_text(encoding="utf-8"))
+    if config.get("architecture") != "CRNN":
+        raise ValueError("Expected checkpoint architecture CRNN")
+    if config.get("vocab") != list(DEFAULT_VOCAB):
+        raise ValueError("Expected checkpoint vocab 0-9a-zA-Z in original order")
     if config.get("img_height") != 32 or config.get("blank_index") != 0:
         raise ValueError("Expected checkpoint height 32 and blank_index 0")
     model = load_local(source_dir).cpu().float()
