@@ -1,4 +1,4 @@
-"""Tests for txtcaptcha.hub and the HF-backed decrypt fallback.
+"""Tests for captix.hub and the HF-backed decrypt fallback.
 
 All HF network calls are mocked — tests must not touch the real Hub.
 """
@@ -10,8 +10,8 @@ from unittest.mock import patch
 import pytest
 import torch
 
-from txtcaptcha import CRNN, decrypt
-from txtcaptcha.hub import (
+from captix import CRNN, decrypt
+from captix.hub import (
     CONFIG_FILENAME,
     WEIGHTS_FILENAME,
     _model_config,
@@ -23,7 +23,7 @@ from txtcaptcha.hub import (
 )
 import importlib
 
-decrypt_mod = importlib.import_module("txtcaptcha.decrypt")  # the module
+decrypt_mod = importlib.import_module("captix.decrypt")  # the module
 
 
 # ---------------------------------------------------------------- save/load
@@ -147,7 +147,7 @@ def test_from_pretrained_passes_revision(tmp_path):
 def test_push_to_hub_without_token_raises(monkeypatch):
     monkeypatch.delenv("HF_TOKEN", raising=False)
     monkeypatch.delenv("HF_API_KEY", raising=False)
-    from txtcaptcha.hub import push_to_hub
+    from captix.hub import push_to_hub
 
     with pytest.raises(RuntimeError, match="HF_TOKEN"):
         push_to_hub(CRNN(), repo_id="fake/repo")
@@ -175,7 +175,7 @@ def test_push_to_hub_calls_create_and_upload(monkeypatch):
             calls["tag"] = tag
 
     with patch("huggingface_hub.HfApi", FakeApi):
-        from txtcaptcha.hub import push_to_hub
+        from captix.hub import push_to_hub
         url = push_to_hub(
             CRNN(),
             repo_id="user/repo",
@@ -204,14 +204,14 @@ def test_decrypt_auto_downloads_when_model_none(tmp_path, tmp_captcha_file):
         calls["repo"] = repo_id
         return model
 
-    with patch("txtcaptcha.hub.from_pretrained", side_effect=fake_from_pretrained):
+    with patch("captix.hub.from_pretrained", side_effect=fake_from_pretrained):
         out1 = decrypt(tmp_captcha_file)
         out2 = decrypt(tmp_captcha_file)  # should hit the cache
 
     assert len(out1) == 1
     assert len(out2) == 1
     assert calls["n"] == 1  # only downloaded once
-    from txtcaptcha.hub import DEFAULT_REPO_ID
+    from captix.hub import DEFAULT_REPO_ID
     assert calls["repo"] == DEFAULT_REPO_ID
 
 
@@ -225,7 +225,7 @@ def test_decrypt_with_string_model_loads_that_repo(tmp_captcha_file):
         calls["repo"] = repo_id
         return model
 
-    with patch("txtcaptcha.hub.from_pretrained", side_effect=fake_from_pretrained):
+    with patch("captix.hub.from_pretrained", side_effect=fake_from_pretrained):
         decrypt(tmp_captcha_file, model="custom/repo")
     assert calls["repo"] == "custom/repo"
 
@@ -237,6 +237,6 @@ def test_decrypt_with_crnn_instance_skips_download(tmp_captcha_file):
     def boom(*a, **k):
         raise AssertionError("should not be called")
 
-    with patch("txtcaptcha.hub.from_pretrained", side_effect=boom):
+    with patch("captix.hub.from_pretrained", side_effect=boom):
         out = decrypt(tmp_captcha_file, model=model)
     assert len(out) == 1

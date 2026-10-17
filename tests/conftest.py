@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for txtcaptcha tests."""
+"""Shared pytest fixtures for captix tests."""
 from __future__ import annotations
 
 from pathlib import Path

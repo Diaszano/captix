@@ -1,4 +1,4 @@
-"""txtcaptcha: Python port of the R captcha package."""
+"""captix: Python port of the R captcha package."""
 from __future__ import annotations
 
 from .captcha import Captcha, read_captcha

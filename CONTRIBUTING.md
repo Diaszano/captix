@@ -1,6 +1,6 @@
 # Contributing to Captix
 
-The PyPI distribution is `captix`; Python imports remain `txtcaptcha`.
+The PyPI distribution is `captix`; Python imports use `captix`.
 
 ## Local setup
 

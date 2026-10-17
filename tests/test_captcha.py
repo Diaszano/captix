@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from txtcaptcha import Captcha, read_captcha
+from captix import Captcha, read_captcha
 
 
 def test_read_single_file(tmp_captcha_file):

@@ -1,9 +1,9 @@
-"""Load and save txtcaptcha models, plus pretrained model registry.
+"""Load and save captix models, plus pretrained model registry.
 
 Note: the original R `captcha` package distributes models serialized via
 `luz`/`torch` (R bindings). Those binaries are *not* directly loadable from
 pure Python — the format depends on R's torch serialization. ``load_model``
-loads txtcaptcha-native checkpoints (created via ``save_model``).
+loads captix-native checkpoints (created via ``save_model``).
 """
 from __future__ import annotations
 

@@ -16,7 +16,7 @@ publishing when qualifying changes reach `main`.
   distribution name. The existing `txtcaptcha` distribution and its Trusted
   Publisher belong to the upstream project and must not be reused.
 - The repository has tag `v0.1.0`; `pyproject.toml` currently declares
-  `0.1.0.9000`. The Python import package remains `txtcaptcha` for compatibility.
+  `0.1.0.9000`. The Python import package is renamed to `captix` with no `txtcaptcha` import compatibility.
 - The repo has no pre-commit configuration or commit/branch validation.
 
 ## Contribution rules
@@ -69,7 +69,7 @@ Release rules:
 | `docs`, `refactor`, `test`, `chore`, `ci`, `build` | No release by itself |
 
 The distribution name in project metadata is `captix`; Python imports continue
-to use `txtcaptcha`. Its version starts from the repository's existing `0.1.0`
+to use `captix`. Its version starts from the repository's existing `0.1.0`
 tag baseline; this does not publish a release. Configure `allow_zero_version`
 so ordinary feature and fix releases stay in `0.x`, while breaking changes
 advance to `1.0.0`. Future

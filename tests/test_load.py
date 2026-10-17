@@ -1,8 +1,8 @@
 import pytest
 import torch
 
-from txtcaptcha import CRNN, available_models, load_model, save_model
-from txtcaptcha.data import available_datasets
+from captix import CRNN, available_models, load_model, save_model
+from captix.data import available_datasets
 
 
 def test_save_and_load_roundtrip(tmp_path):

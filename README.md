@@ -35,7 +35,7 @@ cd captix
 uv sync --extra dev
 ```
 
-The distribution installs as `captix`; Python imports remain `txtcaptcha`.
+The distribution installs as `captix`; Python imports use `captix`.
 
 ## Quick start
 
@@ -43,7 +43,7 @@ The first `decrypt` call downloads the pretrained model from the Hugging Face
 Hub into `~/.cache/huggingface/hub`; subsequent calls are free.
 
 ```python
-from txtcaptcha import read_captcha, decrypt
+from captix import read_captcha, decrypt
 
 cap = read_captcha("path/to/captcha.png")
 print(decrypt(cap))                          # greedy, variable length
@@ -55,7 +55,7 @@ print(decrypt(cap, mask=list("abcdef0123"))) # explicit allowed set
 Pin a specific release or load a different Hub repo explicitly:
 
 ```python
-from txtcaptcha import from_pretrained
+from captix import from_pretrained
 
 model = from_pretrained("jtrecenti/txtcaptcha-crnn", revision="v0.1.0")
 print(decrypt(cap, model=model))
@@ -64,7 +64,7 @@ print(decrypt(cap, model=model))
 ### Training your own model
 
 ```python
-from txtcaptcha import fit_model, save_model, download_dataset
+from captix import fit_model, save_model, download_dataset
 
 data_dir = download_dataset("tjmg", "data")
 model, history = fit_model(
@@ -79,7 +79,7 @@ save_model(model, "tjmg.pt")
 ### Publishing your own model to the Hub
 
 ```python
-from txtcaptcha import push_to_hub
+from captix import push_to_hub
 
 push_to_hub(
     model,

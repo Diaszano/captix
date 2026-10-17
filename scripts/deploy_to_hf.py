@@ -21,8 +21,8 @@ from dotenv import load_dotenv
 # Add src to path so we can run without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from txtcaptcha import load_model  # noqa: E402
-from txtcaptcha.hub import DEFAULT_REPO_ID, push_to_hub  # noqa: E402
+from captix import load_model  # noqa: E402
+from captix.hub import DEFAULT_REPO_ID, push_to_hub  # noqa: E402
 
 
 MODEL_CARD = """---
@@ -40,7 +40,7 @@ language:
   - pt
 ---
 
-# txtcaptcha CRNN — unified Brazilian court captcha model
+# captix CRNN — unified Brazilian court captcha model
 
 A Convolutional Recurrent Neural Network (ResNet-style CNN → BiLSTM → CTC)
 trained jointly on ten labeled captcha datasets from Brazilian courts and
@@ -52,7 +52,7 @@ alphanumeric strings from arbitrarily-sized input images.
 ## Usage
 
 ```python
-from txtcaptcha import decrypt, read_captcha
+from captix import decrypt, read_captcha
 
 cap = read_captcha("captcha.png")
 # First call downloads the weights from this repo into ~/.cache/huggingface;
@@ -65,14 +65,14 @@ print(decrypt(cap, mask="[0-9]"))    # restrict to digits
 Explicit download (useful for notebooks or CI warmup):
 
 ```python
-from txtcaptcha import from_pretrained
+from captix import from_pretrained
 model = from_pretrained("{repo_id}")
 ```
 
-Install `txtcaptcha`:
+Install `captix`:
 
 ```bash
-pip install git+https://github.com/jtrecenti/txtcaptcha
+pip install captix
 ```
 
 ## Training data
@@ -141,7 +141,7 @@ def main(argv=None) -> int:
     parser.add_argument("--private", action="store_true")
     parser.add_argument(
         "--commit-message",
-        default="Upload txtcaptcha CRNN",
+        default="Upload captix CRNN",
     )
     args = parser.parse_args(argv)
 

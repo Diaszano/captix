@@ -23,7 +23,7 @@ The first call downloads the pretrained model from the Hugging Face Hub and
 caches it into `~/.cache/huggingface/hub`.
 
 ```python
-from txtcaptcha import read_captcha, decrypt
+from captix import read_captcha, decrypt
 
 cap = read_captcha("path/to/captcha.png")
 print(decrypt(cap))

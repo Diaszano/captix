@@ -16,12 +16,12 @@ cd captix
 uv sync --extra dev
 ```
 
-The distribution installs as `captix`; Python imports remain `txtcaptcha`.
+The distribution installs as `captix`; Python imports use `captix`.
 
 ## Decrypt a single captcha
 
 ```python
-from txtcaptcha import read_captcha, decrypt
+from captix import read_captcha, decrypt
 
 cap = read_captcha("captcha.png")
 print(decrypt(cap))
@@ -62,7 +62,7 @@ when the true length is known.
 
 ```python
 from pathlib import Path
-from txtcaptcha import decrypt
+from captix import decrypt
 
 files = list(Path("captchas/").glob("*.png"))
 predictions = decrypt(files)
@@ -73,7 +73,7 @@ for f, pred in zip(files, predictions):
 ## Train your own model
 
 ```python
-from txtcaptcha import fit_model, save_model, download_dataset
+from captix import fit_model, save_model, download_dataset
 
 data_dir = download_dataset("tjmg", "data")
 model, history = fit_model(
@@ -91,7 +91,7 @@ project. Use `available_datasets()` for the full list.
 ## Publish to the Hugging Face Hub
 
 ```python
-from txtcaptcha import push_to_hub
+from captix import push_to_hub
 
 push_to_hub(
     model,
@@ -104,7 +104,7 @@ push_to_hub(
 Load it back in a later session:
 
 ```python
-from txtcaptcha import from_pretrained, decrypt, read_captcha
+from captix import from_pretrained, decrypt, read_captcha
 
 model = from_pretrained("your-username/your-captcha-model", revision="v0.1.0")
 decrypt(read_captcha("captcha.png"), model=model)
