@@ -1,4 +1,4 @@
-"""Tests for txtcaptcha.download. All network calls are mocked — these
+"""Tests for captix.download. All network calls are mocked — these
 tests must not touch the internet."""
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from txtcaptcha.download import _base, _sources
-from txtcaptcha.download._base import (
+from captix.download import _base, _sources
+from captix.download._base import (
     CaptchaPayload,
     DownloadError,
     FetchContext,
@@ -19,7 +19,7 @@ from txtcaptcha.download._base import (
     download_captchas,
     get_source,
 )
-from txtcaptcha.download.cli import main as cli_main, _resolve_sources
+from captix.download.cli import main as cli_main, _resolve_sources
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"fakepngdata"
 JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"fakejpegdata"
@@ -405,7 +405,7 @@ def test_cli_main_invokes_download(monkeypatch, tmp_path):
         out.write_bytes(PNG_BYTES)
         return [out]
 
-    monkeypatch.setattr("txtcaptcha.download.cli.download_captchas", fake)
+    monkeypatch.setattr("captix.download.cli.download_captchas", fake)
     ret = cli_main([
         "--source", "esaj", "--n", "3", "--dest", str(tmp_path),
     ])
@@ -416,7 +416,7 @@ def test_cli_main_invokes_download(monkeypatch, tmp_path):
 def test_cli_main_all_sources(monkeypatch, tmp_path):
     seen = []
     monkeypatch.setattr(
-        "txtcaptcha.download.cli.download_captchas",
+        "captix.download.cli.download_captchas",
         lambda source, n, dest_dir, **kw: seen.append(source) or [],
     )
     cli_main(["--source", "all", "--n", "1", "--dest", str(tmp_path)])
@@ -425,7 +425,7 @@ def test_cli_main_all_sources(monkeypatch, tmp_path):
 
 def test_cli_main_returns_1_when_nothing_saved(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "txtcaptcha.download.cli.download_captchas",
+        "captix.download.cli.download_captchas",
         lambda source, n, dest_dir, **kw: [],
     )
     ret = cli_main(["--source", "esaj", "--n", "1", "--dest", str(tmp_path)])

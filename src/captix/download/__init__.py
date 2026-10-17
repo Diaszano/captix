@@ -1,4 +1,4 @@
-"""txtcaptcha.download: fetch fresh captchas from the sources this package
+"""captix.download: fetch fresh captchas from the sources this package
 was trained on. Use :func:`download_captchas` programmatically or the
 ``download_captchas`` CLI.
 """

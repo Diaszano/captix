@@ -1,4 +1,4 @@
-"""txtcaptcha: Python port of the R captcha package."""
+"""captix: Python port of the R captcha package."""
 from __future__ import annotations
 
 from .captcha import Captcha, read_captcha
@@ -59,4 +59,4 @@ __all__ = [
     "DEFAULT_REPO_ID",
 ]
 
-__version__ = "0.1.0.9000"
+__version__ = "0.1.0"

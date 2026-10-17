@@ -55,7 +55,7 @@ def _model_config(model: CRNN) -> dict:
     """
     return {
         "architecture": "CRNN",
-        "library_name": "txtcaptcha",
+        "library_name": "captix",
         "vocab": list(model.vocab),
         "cnn_channels": [64, 128, 256, 256],
         "rnn_hidden": int(model.rnn.hidden_size),
@@ -132,7 +132,7 @@ def from_pretrained(
     token: Optional[str] = None,
     cache_dir: Optional[PathLike] = None,
 ) -> CRNN:
-    """Download and load a txtcaptcha CRNN from the Hugging Face Hub.
+    """Download and load a captix CRNN from the Hugging Face Hub.
 
     ``revision`` accepts a branch, tag, or commit SHA. Defaults to ``main``.
     Downloaded files are cached in the global ``huggingface_hub`` cache,
@@ -164,7 +164,7 @@ def push_to_hub(
     repo_id: str = DEFAULT_REPO_ID,
     *,
     token: Optional[str] = None,
-    commit_message: str = "Upload txtcaptcha CRNN",
+    commit_message: str = "Upload captix CRNN",
     private: bool = False,
     model_card: Optional[str] = None,
     tag: Optional[str] = None,

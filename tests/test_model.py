@@ -1,6 +1,6 @@
 import torch
 
-from txtcaptcha import CRNN, DEFAULT_VOCAB
+from captix import CRNN, DEFAULT_VOCAB
 
 
 def test_model_forward_shapes():

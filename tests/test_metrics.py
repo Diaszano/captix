@@ -1,6 +1,6 @@
 import pytest
 
-from txtcaptcha import sequence_accuracy
+from captix import sequence_accuracy
 
 
 def test_perfect():

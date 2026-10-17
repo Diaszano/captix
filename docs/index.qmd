@@ -1,10 +1,10 @@
 ---
-title: "txtcaptcha"
+title: "Captix"
 subtitle: "Read, annotate, train and decrypt text captchas with a CRNN+CTC model."
 toc: false
 ---
 
-`txtcaptcha` is a PyTorch library for **text captcha recognition**. It ships a
+Captix is a PyTorch library for **text captcha recognition**. It ships a
 CRNN + CTC architecture that handles arbitrary input sizes and variable-length
 labels, plus a pretrained unified model hosted on the
 [Hugging Face Hub](https://huggingface.co/jtrecenti/txtcaptcha-crnn) that
@@ -14,7 +14,7 @@ datasets.
 ## Install
 
 ```bash
-pip install txtcaptcha
+pip install captix
 ```
 
 ## Decrypt a captcha in three lines
@@ -23,7 +23,7 @@ The first call downloads the pretrained model from the Hugging Face Hub and
 caches it into `~/.cache/huggingface/hub`.
 
 ```python
-from txtcaptcha import read_captcha, decrypt
+from captix import read_captcha, decrypt
 
 cap = read_captcha("path/to/captcha.png")
 print(decrypt(cap))
@@ -46,4 +46,4 @@ print(decrypt(cap))
 - [Get started](get-started.qmd) — install, train, decrypt, publish.
 - [API reference](reference/index.qmd) — every public function.
 - [Pretrained model on the Hugging Face Hub](https://huggingface.co/jtrecenti/txtcaptcha-crnn).
-- [Source code on GitHub](https://github.com/jtrecenti/txtcaptcha).
+- [Source code on GitHub](https://github.com/Diaszano/captix).

@@ -1,7 +1,7 @@
 import torch
 from PIL import Image
 
-from txtcaptcha import (
+from captix import (
     CaptchaDataset,
     DEFAULT_VOCAB,
     decode_indices,
@@ -9,7 +9,7 @@ from txtcaptcha import (
     pad_collate,
     transform_image,
 )
-from txtcaptcha.dataset import BLANK_INDEX, _flatten_transparency
+from captix.dataset import BLANK_INDEX, _flatten_transparency
 
 
 def test_default_vocab():

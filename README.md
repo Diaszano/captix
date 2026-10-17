@@ -1,15 +1,15 @@
-# txtcaptcha
+# Captix
 
-[![PyPI](https://img.shields.io/pypi/v/txtcaptcha.svg)](https://pypi.org/project/txtcaptcha/)
-[![Python](https://img.shields.io/pypi/pyversions/txtcaptcha.svg)](https://pypi.org/project/txtcaptcha/)
+[![PyPI](https://img.shields.io/pypi/v/captix.svg)](https://pypi.org/project/captix/)
+[![Python](https://img.shields.io/pypi/pyversions/captix.svg)](https://pypi.org/project/captix/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Model on HF](https://img.shields.io/badge/%F0%9F%A4%97%20HF-jtrecenti%2Ftxtcaptcha--crnn-yellow)](https://huggingface.co/jtrecenti/txtcaptcha-crnn)
-[![Docs](https://img.shields.io/badge/docs-online-brightgreen)](https://jtrecenti.github.io/txtcaptcha/)
+[![Docs](https://img.shields.io/badge/docs-online-brightgreen)](https://Diaszano.github.io/captix/)
 
 Read, annotate, train and decrypt **text captchas in images** with a modern
 CRNN + CTC pipeline in PyTorch.
 
-`txtcaptcha` ships:
+Captix ships:
 
 - a CRNN architecture that handles **arbitrary input sizes** and
   **variable-length labels**,
@@ -24,16 +24,18 @@ CRNN + CTC pipeline in PyTorch.
 ## Installation
 
 ```bash
-pip install txtcaptcha
+pip install captix
 ```
 
 Or from source with [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
-git clone https://github.com/jtrecenti/txtcaptcha
-cd txtcaptcha
+git clone https://github.com/Diaszano/captix
+cd captix
 uv sync --extra dev
 ```
+
+The distribution installs as `captix`; Python imports use `captix`.
 
 ## Quick start
 
@@ -41,7 +43,7 @@ The first `decrypt` call downloads the pretrained model from the Hugging Face
 Hub into `~/.cache/huggingface/hub`; subsequent calls are free.
 
 ```python
-from txtcaptcha import read_captcha, decrypt
+from captix import read_captcha, decrypt
 
 cap = read_captcha("path/to/captcha.png")
 print(decrypt(cap))                          # greedy, variable length
@@ -53,7 +55,7 @@ print(decrypt(cap, mask=list("abcdef0123"))) # explicit allowed set
 Pin a specific release or load a different Hub repo explicitly:
 
 ```python
-from txtcaptcha import from_pretrained
+from captix import from_pretrained
 
 model = from_pretrained("jtrecenti/txtcaptcha-crnn", revision="v0.1.0")
 print(decrypt(cap, model=model))
@@ -62,7 +64,7 @@ print(decrypt(cap, model=model))
 ### Training your own model
 
 ```python
-from txtcaptcha import fit_model, save_model, download_dataset
+from captix import fit_model, save_model, download_dataset
 
 data_dir = download_dataset("tjmg", "data")
 model, history = fit_model(
@@ -77,7 +79,7 @@ save_model(model, "tjmg.pt")
 ### Publishing your own model to the Hub
 
 ```python
-from txtcaptcha import push_to_hub
+from captix import push_to_hub
 
 push_to_hub(
     model,
@@ -107,7 +109,7 @@ push_to_hub(
 | `download_captchas` (CLI) | Download live, unlabeled captchas from 10 Brazilian sources. |
 | `sequence_accuracy(preds, targets)` | Exact-match accuracy metric. |
 
-Full API reference: **<https://jtrecenti.github.io/txtcaptcha/>**.
+Full API reference: **<https://Diaszano.github.io/captix/>**.
 
 ## Architecture
 

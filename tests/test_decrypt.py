@@ -3,8 +3,8 @@ import re
 import pytest
 import torch
 
-from txtcaptcha import CRNN, decrypt
-from txtcaptcha.decrypt import _resolve_mask
+from captix import CRNN, decrypt
+from captix.decrypt import _resolve_mask
 
 
 def test_resolve_mask_list():

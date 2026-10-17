@@ -19,7 +19,7 @@ _DEFAULT_MODEL_CACHE: Dict[str, CRNN] = {}
 def _resolve_model(model: Optional[Union[CRNN, str]]) -> CRNN:
     """Accept a CRNN instance, a repo id string, or None.
 
-    ``None`` pulls :data:`txtcaptcha.hub.DEFAULT_REPO_ID` from the Hub.
+    ``None`` pulls :data:`captix.hub.DEFAULT_REPO_ID` from the Hub.
     Loaded models are cached per repo id so repeated ``decrypt`` calls
     don't re-parse the safetensors file.
     """
@@ -176,7 +176,7 @@ def decrypt(
     files: file path, list of paths, or a Captcha object.
     model: a trained :class:`CRNN` instance, a Hugging Face repo id (string),
         or ``None``. When ``None``, the default unified checkpoint
-        (:data:`txtcaptcha.hub.DEFAULT_REPO_ID`) is downloaded from the
+        (:data:`captix.hub.DEFAULT_REPO_ID`) is downloaded from the
         HF Hub on first call and cached thereafter — the cache lives in
         ``~/.cache/huggingface/hub`` and is shared with every other
         ``huggingface_hub`` user on the machine.

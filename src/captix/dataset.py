@@ -1,4 +1,4 @@
-"""Dataset, transforms and label encoding for txtcaptcha.
+"""Dataset, transforms and label encoding for captix.
 
 The model uses CTC loss, so labels are encoded as integer sequences with a
 reserved blank index 0. The default vocabulary is the full alphanumeric set

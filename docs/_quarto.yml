@@ -5,10 +5,10 @@ project:
     port: 4200
 
 website:
-  title: "txtcaptcha"
+  title: "Captix"
   description: "Read, annotate, train and decrypt text captchas with a CRNN+CTC model."
-  site-url: https://jtrecenti.github.io/txtcaptcha/
-  repo-url: https://github.com/jtrecenti/txtcaptcha
+  site-url: https://Diaszano.github.io/captix/
+  repo-url: https://github.com/Diaszano/captix
   repo-actions: [edit, issue]
   page-navigation: true
   navbar:
@@ -25,7 +25,7 @@ website:
         href: changelog.qmd
     right:
       - icon: github
-        href: https://github.com/jtrecenti/txtcaptcha
+        href: https://github.com/Diaszano/captix
         aria-label: GitHub
       - text: "🤗 Model"
         href: https://huggingface.co/jtrecenti/txtcaptcha-crnn
@@ -43,7 +43,7 @@ execute:
   enabled: false
 
 quartodoc:
-  package: txtcaptcha
+  package: captix
   title: API reference
   dir: reference
   sidebar: reference/_sidebar.yml
